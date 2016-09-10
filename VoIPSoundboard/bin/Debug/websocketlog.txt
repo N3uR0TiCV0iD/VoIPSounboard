@@ -1,0 +1,6 @@
+21/03/2016 4:22:51|Fatal|WebSocket.Ping|System.Threading.ThreadAbortException: Subproceso anulado.
+                            en System.Threading.WaitHandle.WaitOneNative(SafeHandle waitableSafeHandle, UInt32 millisecondsTimeout, Boolean hasThreadAffinity, Boolean exitContext)
+                            en System.Threading.WaitHandle.InternalWaitOne(SafeHandle waitableSafeHandle, Int64 millisecondsTimeout, Boolean hasThreadAffinity, Boolean exitContext)
+                            en System.Threading.WaitHandle.WaitOne(TimeSpan timeout, Boolean exitContext)
+                            en System.Threading.WaitHandle.WaitOne(TimeSpan timeout)
+                            en WebSocketSharp.WebSocket.Ping(Byte[] frameAsBytes, TimeSpan timeout)
