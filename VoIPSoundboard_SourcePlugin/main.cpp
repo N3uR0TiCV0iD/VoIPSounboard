@@ -14,7 +14,7 @@
 	#define DEBUGMSG2(message, data1, data2) 
 #endif
 
-typedef void (__stdcall *ClientCMDProc)(const char*, bool);
+typedef void (__stdcall *ClientCMDProc)(const char*);
 typedef struct sockaddr_in sockaddr_in;
 
 DWORD GetModuleSize(HMODULE hModule)
@@ -30,8 +30,8 @@ DWORD GetModuleSize(HMODULE hModule)
 DWORD FindClientCMD(DWORD startPos, DWORD lookLength)
 {
 	bool found = false;
-	char* mask = "11111    11    111    11";
-	char* pattern = "\x55\x8B\xEC\x8B\x0D\x00\x00\x00\x00\x81\xF9\x00\x00\x00\x00\x75\x0C\xA1\x00\x00\x00\x00\x35\x90";
+	char* mask = "11111    11    111    1    111111 111";
+	char* pattern = "\x55\x8B\xEC\x8B\x0D\x00\x00\x00\x00\x81\xF9\x00\x00\x00\x00\x75\x0C\xA1\x00\x00\x00\x00\x35\x00\x00\x00\x00\xEB\x05\x8B\x01\xFF\x50\x00\x85\xC0\x79";
 	int patternLength = strlen(mask);
 	DWORD endPos = (startPos + lookLength) - patternLength;
 	DEBUGMSG2("Looking for pattern from 0x%08x to 0x%08x\n", startPos, endPos + patternLength);
@@ -99,11 +99,11 @@ void PluginService()
 							{
 								case PLUGINMESSAGE_PLAYSOUND:
 									DEBUGMSG("Playing sound\n");
-									ClientCMD("voice_inputfromfile 1; +voicerecord; voice_loopback 1", false);
+									ClientCMD("voice_inputfromfile 1; +voicerecord; voice_loopback 1");
 								break;
 								case PLUGINMESSAGE_STOPPLAYING:
 									DEBUGMSG("Stopping sound\n");
-									ClientCMD("-voicerecord; voice_inputfromfile 0; voice_loopback 0", false);
+									ClientCMD("-voicerecord; voice_inputfromfile 0; voice_loopback 0");
 								break;
 								case PLUGINMESSAGE_STARTRECORDING:
 									//...

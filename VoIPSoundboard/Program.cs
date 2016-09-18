@@ -1,4 +1,5 @@
 ﻿using System;
+using AutoUpdateModule;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
@@ -8,6 +9,7 @@ namespace HiT.VoIPSoundboard
     {
         [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hwnd, int showCMD);
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+        const string VERSION = "1.0b";
         const int SW_SHOWNORMAL = 1;
         /// <summary>
         /// The main entry point for the application.
@@ -27,10 +29,19 @@ namespace HiT.VoIPSoundboard
             }
             if (runningProcess == null)
             {
-                myProcess = null;
+                UpdateInfoFileHelper updateHelper = new UpdateInfoFileHelper("https://raw.githubusercontent.com/N3uR0TiCV0iD/VoIPSounboard/master/latestversion", new VersionInfo(VERSION));
+                Application.SetCompatibleTextRenderingDefault(false);
                 Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);                
-                Application.Run(new MainForm());
+                myProcess = null;
+                if (updateHelper.IsUpdateAvailable() && MessageBox.Show("There is a new update available, would you like to download it?",
+                                                                        "INFO: New update available.", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                {
+                    updateHelper.ApplyUpdate();
+                }
+                else
+                {
+                    Application.Run(new MainForm());
+                }
             }
             else
             {
