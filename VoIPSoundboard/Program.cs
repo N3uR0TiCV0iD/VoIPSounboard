@@ -9,14 +9,14 @@ namespace HiT.VoIPSoundboard
     {
         [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hwnd, int showCMD);
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-        const string VERSION = "1.0b";
+        const string VERSION = "1.0c";
         const int SW_SHOWNORMAL = 1;
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
         static void Main()
-         {
+        {
             Process runningProcess = null;
             Process myProcess = Process.GetCurrentProcess();
             foreach (var currProcess in Process.GetProcesses())
