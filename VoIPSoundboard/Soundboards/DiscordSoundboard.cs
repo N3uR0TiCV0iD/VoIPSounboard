@@ -103,12 +103,12 @@ namespace HiT.VoIPSoundboard.Soundboards
         {
             get
             {
-                return ActiveFollowingUser;
+                return activeFollowingUser;
             }
             set
             {
                 followingUserID = value.Id;
-                ActiveFollowingUser = value;
+                activeFollowingUser = value;
             }
         }
         public string Email

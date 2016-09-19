@@ -9,7 +9,7 @@ namespace HiT.VoIPSoundboard
     {
         [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hwnd, int showCMD);
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-        const string VERSION = "1.0c";
+        const string VERSION = "1.0d";
         const int SW_SHOWNORMAL = 1;
         /// <summary>
         /// The main entry point for the application.
