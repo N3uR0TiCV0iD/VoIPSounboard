@@ -176,7 +176,7 @@ namespace HiT.VoIPSoundboard.Soundboards
                 fullscreenProcess = null;
             }
         }
-        public void PlayFile(string filePath, WaveFileReader waveFileReader)
+        public void PlayFile(string filePath, WaveStream waveStream)
         {
             try
             {

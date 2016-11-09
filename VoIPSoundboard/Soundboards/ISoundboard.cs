@@ -4,7 +4,7 @@ namespace HiT.VoIPSoundboard.Soundboards
 {
     public interface ISoundboard
     {
-        void PlayFile(string filePath, WaveFileReader waveFileReader);
+        void PlayFile(string filePath, WaveStream waveStream);
         void SoundboardService();
         void StartRecording();
         void StopRecording();

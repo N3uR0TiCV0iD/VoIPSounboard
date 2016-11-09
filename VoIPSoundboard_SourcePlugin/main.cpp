@@ -4,19 +4,85 @@
 #define PLUGINMESSAGE_STARTRECORDING 0x02
 #define PLUGINMESSAGE_STOPRECORDING 0x03
 
+#define CLIENTCMD_PATTERN "\x55\x8B\xEC\x8B\x0D\x00\x00\x00\x00\x81\xF9\x00\x00\x00\x00\x75\x0C\xA1\x00\x00\x00\x00\x35\x00\x00\x00\x00\xEB\x05\x8B\x01\xFF\x50\x00\x85\xC0\x79"
+#define CLIENTCMD_MASK "11111    11    111    1    111111 111"
+#define ENGINEUPDATEMSG_PATTERN "\x8B\x5D\x0C\x03\x5D\x14\x56\x8B\xF1\x57\x83\xFB\x0C" //Starts @ mov ebx, [ebp+0C]
+#define ENGINEUPDATEMSG_MASK "1111111111111"
+#define ENGINEUPDATEMSG_REPLACINGBYTES 6
+
 #if _DEBUG
-	#define DEBUGMSG(message) printf(message)
-	#define DEBUGMSG1(message, data1) printf(message, data1)
-	#define DEBUGMSG2(message, data1, data2) printf(message, data1, data2)
+	#define DEBUGMSG(message, ...) printf(message, __VA_ARGS__)
 #else
-	#define DEBUGMSG(message) 
-	#define DEBUGMSG1(message, data1) 
-	#define DEBUGMSG2(message, data1, data2) 
+	#define DEBUGMSG(message, ...) 
 #endif
 
-typedef void (__stdcall *ClientCMDProc)(const char*);
 typedef struct sockaddr_in sockaddr_in;
 
+SOCKET clientSocket;
+bool clientConnected;
+DWORD engineUpdateMsgReturnAddress;
+_declspec(naked) void EngineUpdateMessage_Detour(const char *data1, int data1Length, const char *data2, int data2Length) //Not sure if that is what the function is for... But hey it suits the purpose :D
+{
+	__asm
+	{
+		pushad; //Push all general purpose registers
+		pushfd; //Push all CPU flags
+	}
+	//DEBUGMSG("Detour got called! | data1[%i] = <%s> | data2[%i] = <%s>\n", data1Length, data1, data2Length, data2);
+	if (clientConnected && data2Length > 1 && ((data1Length == 10 && strcmp(data1, "say_team \"") == 0) ||
+		                                       (data1Length == 5 && strcmp(data1, "say \"") == 0)) )
+	{
+		char lengthBuffer[4] { //In Little-Endian
+			data2Length & 0xFF,
+			(data2Length >> 8) & 0xFF,
+			(data2Length >> 16) & 0xFF,
+			(data2Length >> 24) & 0xFF,
+		};
+		DEBUGMSG("Looks like I should TTS: <%s>\n", data2);
+		send(clientSocket, lengthBuffer, sizeof(int), 0);
+		send(clientSocket, data2, data2Length, 0);
+	}
+	__asm
+	{
+		popfd; //Pop all CPU flags
+		popad; //Pop all general purpose registers
+		mov ebx, [ebp + 0x0C];		//]
+		add ebx, [ebp + 0x14];		//]--- Original instructions before detour
+		jmp engineUpdateMsgReturnAddress;  //Jump back to the rest of the normal EngineUpdateMessage
+	}
+}
+void InitPlugin()
+{
+	ClientCMDProc ClientCMD;
+	DWORD engineDLL = (DWORD)GetModuleHandleA("engine.dll");
+	DWORD engineDLLSize = GetModuleSize((HMODULE)engineDLL);
+	DEBUGMSG("EngineDLL Module @ 0x%08x\n", engineDLL);
+	DEBUGMSG("EngineDLLSize: %i\n", engineDLLSize);
+	ClientCMD = (ClientCMDProc)FindPattern(engineDLL, engineDLLSize, CLIENTCMD_PATTERN, CLIENTCMD_MASK);
+	if (ClientCMD != NULL)
+	{
+		DWORD scaleFormDLL = (DWORD)GetModuleHandleA("scaleformui.dll");
+		DWORD scaleFormDLLSize = GetModuleSize((HMODULE)scaleFormDLL);
+		DWORD engineUpdateMsgHookAddress = FindPattern(scaleFormDLL, scaleFormDLLSize, ENGINEUPDATEMSG_PATTERN, ENGINEUPDATEMSG_MASK);
+		DEBUGMSG("Found ClientCMD method @ 0x%08x (Offset: +0x%08x)\n", &ClientCMD, &ClientCMD - engineDLL);
+		DEBUGMSG("scaleFormDLL Module @ 0x%08x\n", scaleFormDLL);
+		DEBUGMSG("scaleFormDLLSize: %i\n", scaleFormDLLSize);
+		engineUpdateMsgReturnAddress = engineUpdateMsgHookAddress + ENGINEUPDATEMSG_REPLACINGBYTES;
+		if (engineUpdateMsgHookAddress != NULL && DetourMethod((void*)engineUpdateMsgHookAddress, &EngineUpdateMessage_Detour, ENGINEUPDATEMSG_REPLACINGBYTES))
+		{
+			DEBUGMSG("Successfully hooked EngineUpdateMessage @ 0x%08x\n", engineUpdateMsgHookAddress);
+			PluginService(ClientCMD);
+		}
+		else
+		{
+			DEBUGMSG("Could not hook the EngineUpdateMessage method\n");
+		}
+	}
+	else
+	{
+		DEBUGMSG("Could not find the ClientCMD method with the given signature\n");
+	}
+}
 DWORD GetModuleSize(HMODULE hModule)
 {
 	if (hModule == 0)
@@ -27,14 +93,12 @@ DWORD GetModuleSize(HMODULE hModule)
 	GetModuleInformation(GetCurrentProcess(), hModule, &modinfo, sizeof(MODULEINFO));
 	return modinfo.SizeOfImage;
 }
-DWORD FindClientCMD(DWORD startPos, DWORD lookLength)
+DWORD FindPattern(DWORD startPos, DWORD lookLength, const char *pattern, const char *mask)
 {
 	bool found = false;
-	char* mask = "11111    11    111    1    111111 111";
-	char* pattern = "\x55\x8B\xEC\x8B\x0D\x00\x00\x00\x00\x81\xF9\x00\x00\x00\x00\x75\x0C\xA1\x00\x00\x00\x00\x35\x00\x00\x00\x00\xEB\x05\x8B\x01\xFF\x50\x00\x85\xC0\x79";
 	int patternLength = strlen(mask);
 	DWORD endPos = (startPos + lookLength) - patternLength;
-	DEBUGMSG2("Looking for pattern from 0x%08x to 0x%08x\n", startPos, endPos + patternLength);
+	DEBUGMSG("Looking for pattern from 0x%08x to 0x%08x\n", startPos, endPos + patternLength);
 	for (DWORD currMemoryPos = startPos; currMemoryPos < endPos; currMemoryPos++)
 	{
 		found = true;
@@ -49,100 +113,103 @@ DWORD FindClientCMD(DWORD startPos, DWORD lookLength)
 		}
 		if (found)
 		{
-			DEBUGMSG2("Found ClientCMD method @ 0x%08x (Offset: +0x%08x)\n", currMemoryPos, currMemoryPos - startPos);
 			return currMemoryPos;
 		}
 	}
 	return NULL;
 }
-void PluginService()
+bool DetourMethod(void *source, void *destination, int length)
 {
-	ClientCMDProc ClientCMD;
-	DWORD engineDLL = (DWORD)GetModuleHandleA("engine.dll");
-	DWORD engineDLLSize = GetModuleSize((HMODULE)engineDLL);
-	DEBUGMSG1("EngineDLL Module @ 0x%08x\n", engineDLL);
-	DEBUGMSG1("EngineDLLSize: %i\n", engineDLLSize);
-	ClientCMD = (ClientCMDProc)FindClientCMD(engineDLL, engineDLLSize);
-	if (ClientCMD != NULL)
+	if (length >= 5)
 	{
-		SOCKET serverSocket;
-		serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (serverSocket != INVALID_SOCKET)
+		DWORD currProtection;
+		VirtualProtect(source, length, PAGE_EXECUTE_READWRITE, &currProtection);
+		memset(source, 0x90, length);
+		DWORD relativeAddress = ((DWORD)destination - (DWORD)source) - 5;
+		*(byte*)source = 0xE9;
+		*(DWORD*)((DWORD)source + 1) = relativeAddress;
+		VirtualProtect(source, length, currProtection, NULL);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+void PluginService(ClientCMDProc ClientCMD)
+{
+	SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (serverSocket != INVALID_SOCKET)
+	{
+		sockaddr_in serverAddress;
+		DEBUGMSG("Socket created.\n");
+		serverAddress.sin_family = AF_INET;
+		serverAddress.sin_port = htons(60873);
+		serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+		if (bind(serverSocket, (sockaddr*)&serverAddress, sizeof(serverAddress)) != SOCKET_ERROR)
 		{
-			sockaddr_in serverAddress;
-			DEBUGMSG("Socket created.\n");
-			serverAddress.sin_family = AF_INET;
-			serverAddress.sin_addr.s_addr = INADDR_ANY;
-			serverAddress.sin_port = htons(60873);
-			if (bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress)) != SOCKET_ERROR)
+			sockaddr_in clientAddress;
+			int clientAddressSize = sizeof(sockaddr_in);
+			DEBUGMSG("Bind done.\n");
+			listen(serverSocket, 3);
+			while (TRUE)
 			{
-				SOCKET clientSocket;
-				sockaddr_in clientAddress;
-				int clientAddressSize = sizeof(sockaddr_in);
-				DEBUGMSG("Bind done.\n");
-				listen(serverSocket, 3);
-				while (TRUE)
+				DEBUGMSG("Listening for new client. . .\n");
+				clientSocket = accept(serverSocket, (sockaddr*)&clientAddress, &clientAddressSize);
+				DEBUGMSG("Client connected.\n");
+				if (clientSocket != INVALID_SOCKET)
 				{
-					DEBUGMSG("Listening for new client. . .\n");
-					clientSocket = accept(serverSocket, (sockaddr*)&clientAddress, &clientAddressSize);
-					DEBUGMSG("Client connected.\n");
-					if (clientSocket != INVALID_SOCKET)
+					char buffer[1];
+					int receivedBytes = 1;
+					clientConnected = true;
+					while (receivedBytes > 0)
 					{
-						char buffer[1];
-						int receivedBytes = 1;
-						int bufferLength = sizeof(buffer);
-						while (receivedBytes > 0)
+						receivedBytes = recv(clientSocket, buffer, sizeof(buffer), 0);
+						DEBUGMSG("Received: %i\n", buffer[0]);
+						switch (buffer[0])
 						{
-							receivedBytes = recv(clientSocket, buffer, bufferLength, 0);
-							DEBUGMSG1("Received: %i\n", buffer[0]);
-							switch (buffer[0])
-							{
-								case PLUGINMESSAGE_PLAYSOUND:
-									DEBUGMSG("Playing sound\n");
-									ClientCMD("voice_inputfromfile 1; +voicerecord; voice_loopback 1");
-								break;
-								case PLUGINMESSAGE_STOPPLAYING:
-									DEBUGMSG("Stopping sound\n");
-									ClientCMD("-voicerecord; voice_inputfromfile 0; voice_loopback 0");
-								break;
-								case PLUGINMESSAGE_STARTRECORDING:
-									//...
-								break;
-								case PLUGINMESSAGE_STOPRECORDING:
-									//...
-								break;
-								default:
-									DEBUGMSG("Unknown packet\n");
-								break;
-							}
+							case PLUGINMESSAGE_PLAYSOUND:
+								DEBUGMSG("Playing sound\n");
+								ClientCMD("voice_inputfromfile 1; +voicerecord; voice_loopback 1");
+							break;
+							case PLUGINMESSAGE_STOPPLAYING:
+								DEBUGMSG("Stopping sound\n");
+								ClientCMD("-voicerecord; voice_inputfromfile 0; voice_loopback 0");
+							break;
+							case PLUGINMESSAGE_STARTRECORDING:
+								//...
+							break;
+							case PLUGINMESSAGE_STOPRECORDING:
+								//...
+							break;
+							default:
+								DEBUGMSG("Unknown packet\n");
+							break;
 						}
-						if (receivedBytes != 0)
-						{
-							DEBUGMSG1("recv failed with error: %d\n", WSAGetLastError());
-						}
-						closesocket(clientSocket);
-						WSACleanup();
 					}
-					else
+					clientConnected = false;
+					if (receivedBytes != 0)
 					{
-						DEBUGMSG1("Accept failed with error code : %d\n", WSAGetLastError());
+						DEBUGMSG("recv failed with error: %i\n", WSAGetLastError());
 					}
-					Sleep(1250);
+					closesocket(clientSocket);
+					WSACleanup();
 				}
-			}
-			else
-			{
-				DEBUGMSG1("Bind failed with error code : %d\n", WSAGetLastError());
+				else
+				{
+					DEBUGMSG("Accept failed with error code: %i\n", WSAGetLastError());
+				}
+				Sleep(1250);
 			}
 		}
 		else
 		{
-			DEBUGMSG1("Could not create socket : %d\n", WSAGetLastError());
+			DEBUGMSG("Bind failed with error code: %i\n", WSAGetLastError());
 		}
 	}
 	else
 	{
-		DEBUGMSG("Could not find the ClientCMD method with the given signature\n");
+		DEBUGMSG("Could not create socket: %i\n", WSAGetLastError());
 	}
 }
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved)
@@ -153,7 +220,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved)
 			AllocConsole();
 			freopen("CON", "w", stdout);
 		#endif
-		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)PluginService, hModule, 0, NULL);
+		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)InitPlugin, hModule, 0, NULL);
 	}
 	return TRUE;
 }

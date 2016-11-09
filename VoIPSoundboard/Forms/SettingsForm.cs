@@ -1,5 +1,7 @@
 ﻿using System;
 using Discord;
+using System.IO;
+using System.Net;
 using Discord.Net;
 using SKYPE4COMLib;
 using Microsoft.Win32;
@@ -14,11 +16,13 @@ namespace HiT.VoIPSoundboard
 {
     public partial class SettingsForm : Form
     {
+        bool closed;
         bool startup;
         Keys[] skypeKeys;
         bool updateHotkey;
         bool savingAvatar;
         string iconPrefixName;
+        Thread microphonePeakThread;
         List<DiscordUser> fetchedUsers;
         SkypeSoundboard skypeSoundboard;
         DiscordSoundboard discordSoundboard;
@@ -28,13 +32,19 @@ namespace HiT.VoIPSoundboard
             this.startup = true;
             InitializeComponent();
             this.skypeKeys = new Keys[2];
-            this.subscribedServers = new List<Server>();
             this.fetchedUsers = new List<DiscordUser>();
             this.skypeKeys[0] = mainForm.GetGlobalKey(4);
             this.skypeKeys[1] = mainForm.GetGlobalKey(5);
             this.skypeSoundboard = mainForm.SkypeSoundboard;
+            this.subscribedServers = new List<DiscordServer>();
             this.discordSoundboard = mainForm.DiscordSoundboard;
             this.fullscreenCheckBox.Checked = skypeSoundboard.CheckFullscreen;
+            this.microphonePeakThread = new Thread(() => UpdateMicrophonePeakService());
+            this.speakMutedNotifyBox.Checked = this.discordSoundboard.NotifyMutedTalking;
+            this.peakNotificationTrackBar.Value = (int)Math.Round(this.discordSoundboard.MutedPeakLevel * this.peakNotificationTrackBar.Maximum);
+            this.toolTip.SetToolTip(volumeDuckingBox, "If checked, it will allow Skype reduce the volume of background applications.");
+            this.toolTip.SetToolTip(fullscreenCheckBox, "If checked, it will set your Skype status to the selected one while you have a fullscreen application running.");
+            this.toolTip.SetToolTip(speakMutedNotifyBox, "If checked, it will play a sound to tell you that you are trying to talk while muted.\nThe volume limit at which the sound will play can be set on the left.");
             switch (skypeSoundboard.FullscreenStatus)
             {
                 case TUserStatus.cusOnline:
@@ -72,7 +82,12 @@ namespace HiT.VoIPSoundboard
                     volumeDuckingBox.Checked = value == null || (int)value != 3;
                 }
             }
+            RefreshMicrophoneDevices();
             this.startup = true;
+        }
+        private void SettingsForm_Load(object sender, EventArgs e)
+        {
+            this.microphonePeakThread.Start();
         }
         public Keys[] SkypeKeys
         {
@@ -178,7 +193,7 @@ namespace HiT.VoIPSoundboard
             }
             catch (HttpException)
             {
-                MessageBox.Show("ERROR: Wrong login credentials", "ERROR: Invalid login.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("ERROR: Wrong login credentials!", "ERROR: Invalid login.", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 passwordBox.Text = String.Empty;
             }
             catch (Exception ex)
@@ -220,6 +235,72 @@ namespace HiT.VoIPSoundboard
             discordSoundboard.ActiveFollowingUser = selectedUser;
             MessageBox.Show("Now following " + selectedUser.Name + " [ID: " + selectedUser.Id + "]",
                             "INFO: New following user.", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        private void microphonesBox_DropDown(object sender, EventArgs e)
+        {
+            RefreshMicrophoneDevices();
+        }
+        private void RefreshMicrophoneDevices()
+        {
+            microphonesBox.Items.Clear();
+            foreach (var currDeviceName in MicrophoneHelper.GetDeviceNames())
+            {
+                microphonesBox.Items.Add(currDeviceName);
+            }
+            if (microphonesBox.Items.Count != 0)
+            {
+                if (discordSoundboard.Microphone != null)
+                {
+                    int index;
+                    MicrophoneHelper.GetMicrophoneFromID(discordSoundboard.MicrophoneID, out index);
+                    microphonesBox.SelectedIndex = index;
+                }
+                else
+                {
+                    microphonesBox.SelectedIndex = 0;
+                }
+            }
+        }
+        private void microphonesBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (microphonesBox.SelectedIndex != -1)
+            {
+                discordSoundboard.SetMicrophoneFromIndex(microphonesBox.SelectedIndex);
+            }
+        }
+        private void UpdateMicrophonePeakService()
+        {
+            while (!closed && !Environment.HasShutdownStarted)
+            {
+                if (discordSoundboard.Microphone != null)
+                {
+                    try
+                    {
+                        this.Invoke((MethodInvoker)delegate
+                        {
+                            microphonePeakBar.Value = (int)(discordSoundboard.Microphone.AudioMeterInformation.MasterPeakValue * 100);
+                        });
+                    }
+                    catch { }
+                }
+                Thread.Sleep(64);
+            }
+        }
+        private void speakMutedNotifyBox_CheckedChanged(object sender, EventArgs e)
+        {
+            bool isChecked = speakMutedNotifyBox.Checked;
+            discordSoundboard.NotifyMutedTalking = isChecked;
+            peakNotificationTrackBar.Enabled = isChecked;
+            microphonePeakBar.Enabled = isChecked;
+            microphonesBox.Enabled = isChecked;
+            micSourceLabel.Enabled = isChecked;
+            peakPercentageLabel.Enabled = isChecked;
+        }
+        private void peakNotificationTrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            float peakValue = peakNotificationTrackBar.Value / (float)peakNotificationTrackBar.Maximum;
+            peakPercentageLabel.Text = (int)(peakValue * 100) + "%";
+            discordSoundboard.MutedPeakLevel = peakValue;
         }
         private void inviteBox_TextChanged(object sender, EventArgs e)
         {
@@ -304,6 +385,82 @@ namespace HiT.VoIPSoundboard
                     }
                 }
             }
+        }
+        private async void copycatMenuItem_Click(object sender, EventArgs e)
+        {
+            string newUsername;
+            using (MemoryStream avatarImageStream = new MemoryStream())
+            {
+                if (savingAvatar)
+                {
+                    DiscordUser meClone;
+                    DiscordUser copyingUserClone;
+                    ulong copyingUserID = fetchedUsers[fetchedUsersBox.SelectedIndex].Id;
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        selectedUserAvatarBox.Image.Save(avatarImageStream, ImageFormat.Jpeg);
+                    });
+                    newUsername = fetchedUsers[fetchedUsersBox.SelectedIndex].Name;
+                    foreach (var currServer in discordSoundboard.Client.Servers)
+                    {
+                        break; //tmp
+                        meClone = null;
+                        copyingUserClone = null;
+                        foreach (var currUser in currServer.Users)
+                        {
+                            if (currUser.Id == copyingUserID)
+                            {
+                                copyingUserClone = currUser;
+                                if (meClone != null)
+                                {
+                                    break;
+                                }
+                            }
+                            else if (currUser.Id == discordSoundboard.Client.CurrentUser.Id)
+                            {
+                                meClone = currUser;
+                                if (copyingUserClone != null)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        await meClone.Edit(nickname: copyingUserClone.Nickname);
+                    }
+                }
+                else
+                {
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        selectedServerLogoBox.Image.Save(avatarImageStream, ImageFormat.Jpeg);
+                    });
+                    newUsername = subscribedServers[serversBox.SelectedIndex].Name;
+                }
+                avatarImageStream.Position = 0;
+                try
+                {
+                    await discordSoundboard.Client.CurrentUser.Edit(discordSoundboard.Password, newUsername, avatar: avatarImageStream, avatarType: ImageType.Jpeg);
+                }
+                catch (HttpException ex)
+                {
+                    switch (ex.StatusCode)
+                    {
+                        case HttpStatusCode.BadRequest:
+                            MessageBox.Show("ERROR: Too many requests, try again later", "ERROR: Too many requests.", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        break;
+                        default:
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utils.ShowUnhandledException(ex, "SettingsForm->copycatMenuItem_Click");
+                }
+            }
+        }
+        private void SettingsForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            closed = true;
         }
     }
 }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Net;
+using System.Web;
 using System.Text;
 using NAudio.Wave;
 using System.Threading;
@@ -26,17 +28,21 @@ namespace HiT.VoIPSoundboard.Soundboards
         [DllImport("kernel32.dll", SetLastError = true)] private static extern int WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] buffer, uint size, int lpNumberOfBytesWritten);
         [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttribute, IntPtr dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
         static readonly string SOURCEPLUGIN_PATH = Application.StartupPath + "\\VoIPSoundboard_SourcePlugin.dll";
+        static readonly string TTSTMP_PATH = Path.GetTempPath() + "\\tts_tmp.mp3";
         WaveFormat gameVoiceSampleFormat;
         IntPtr loadLibraryMethodPtr;
         BinaryWriter messageSender;
+        Thread messageReaderThread;
         Process sourceGameProcess;
         string gameRootDirectory;
         TcpClient messageClient;
         NotifyIcon trayIcon;
-        public SourceSoundboard(NotifyIcon trayIcon)
+        MainForm mainForm;
+        public SourceSoundboard(MainForm mainForm)
         {
             this.loadLibraryMethodPtr = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
-            this.trayIcon = trayIcon;
+            this.trayIcon = mainForm.TrayIcon;
+            this.mainForm = mainForm;
         }
         public Process SourceGameProcess
         {
@@ -120,9 +126,12 @@ namespace HiT.VoIPSoundboard.Soundboards
                 }
                 else
                 {
+                    if (messageSender != null)
+                    {
+                        messageSender.Dispose();
+                    }
                     sourceGameProcess.Dispose();
                     sourceGameProcess = null;
-                    messageSender.Dispose();
                     messageSender = null;
                     messageClient = null;
                 }
@@ -168,12 +177,85 @@ namespace HiT.VoIPSoundboard.Soundboards
         }
         private void NotifyInjection()
         {
-            messageSender = new BinaryWriter(messageClient.GetStream());
+            NetworkStream networkStream = messageClient.GetStream();
             trayIcon.ShowBalloonTip(5000, "VoIPSoundboard - Injection successful", "VoIPSounboard was able to inject itself to the Source Game successfully.", ToolTipIcon.Info);
+            messageReaderThread = new Thread( () => ReadMessagesService(new BinaryReader(networkStream)) );
+            messageSender = new BinaryWriter(networkStream);
+            messageReaderThread.Start();
         }
-        public void PlayFile(string filePath, WaveFileReader waveFileReader)
+        private void ReadMessagesService(BinaryReader messageReader)
         {
-            using (WaveChannel32 waveChannel = new WaveChannel32(waveFileReader))
+            string readLine;
+            bool foundFileURL;
+            int messageLength;
+            string ttsMessage;
+            byte[] messageBytes;
+            HttpWebRequest ttsRequest;
+            byte[] requestContentBytes;
+            HttpWebResponse ttsResponse;
+            StringBuilder requestContent = new StringBuilder();
+            while (messageClient != null && messageClient.Connected)
+            {
+                try
+                {
+                    messageLength = messageReader.ReadInt32();
+                    messageBytes = messageReader.ReadBytes(messageLength);
+                    ttsMessage = HttpUtility.HtmlEncode(Encoding.ASCII.GetString(messageBytes));
+                    ttsRequest = WebRequest.CreateHttp("http://www.acapela-group.com/demo-tts/DemoHTML5Form_V2.php");
+                    requestContent.Append("MyLanguages=sonid10&0=Leila&1=Laia&2=Eliska&3=Mette&4=Zoe&5=Jasmijn&6=Tyler&7=Deepa&8=Rhona&9=Rachel&");
+                    requestContent.Append("MySelectedVoice=WillLittleCreature+%28emotive+voice%29&");
+                    requestContent.Append("11=Hanna&12=Sanna&13=Manon-be&14=Louise&15=Manon&16=Claudia&17=Dimitris&18=Fabiana&19=Sakura&20=Minji&21=Lulu&22=Bente&23=Monika&24=Marcia&25=Celia&26=Alyona&27=Biera&28=Ines&29=Rodrigo&30=Elin&31=Samuel&32=Kal&33=Mia&34=Ipek&");
+                    requestContent.Append("MyTextForTTS=" + ttsMessage + "&t=1&SendToVaaS=");
+                    requestContentBytes = Encoding.ASCII.GetBytes(requestContent.ToString());
+                    ttsRequest.ContentType = "application/x-www-form-urlencoded";
+                    ttsRequest.ContentLength = requestContentBytes.Length;
+                    ttsRequest.Method = "POST";
+                    using (Stream requestStream = ttsRequest.GetRequestStream())
+                    {
+                        requestStream.Write(requestContentBytes, 0, requestContentBytes.Length);
+                    }
+                    foundFileURL = false;
+                    ttsResponse = (HttpWebResponse)ttsRequest.GetResponse();
+                    using (StreamReader responseReader = new StreamReader(ttsResponse.GetResponseStream()))
+                    {
+                        while (!foundFileURL && !responseReader.EndOfStream)
+                        {
+                            readLine = responseReader.ReadLine();
+                            if (readLine.StartsWith("            var myPhpVar"))
+                            {
+                                //MessageBox.Show("<" + readLine + ">");
+                                using (WebClient webClient = new WebClient())
+                                {
+                                    messageBytes = webClient.DownloadData(readLine.Substring(28, readLine.Length - 30));  //Reusing variable...
+                                    using (MemoryStream ttsMP3Stream = new MemoryStream(messageBytes))
+                                    {
+                                        using (Mp3FileReader mp3FileReader = new Mp3FileReader(ttsMP3Stream))
+                                        {
+                                            PlayFile(null, mp3FileReader);
+                                            mainForm.WaitForSoundEnd(mp3FileReader.TotalTime);
+                                            StopPlaying();
+                                        }
+                                    }
+                                }
+                                foundFileURL = true;
+                            }
+                        }
+                    }
+                    requestContent.Clear();
+                }
+                catch (IOException)
+                {
+                    //DO NOTHING...
+                }
+                catch (Exception ex)
+                {
+                    Utils.ShowUnhandledException(ex, "SourceSoundboard->ReadMessagesService");
+                }
+            }
+        }
+        public void PlayFile(string filePath, WaveStream waveStream)
+        {
+            using (WaveChannel32 waveChannel = new WaveChannel32(waveStream))
             {
                 waveChannel.PadWithZeroes = false;
                 using (MediaFoundationResampler waveResampler = new MediaFoundationResampler(waveChannel, gameVoiceSampleFormat))
@@ -198,7 +280,8 @@ namespace HiT.VoIPSoundboard.Soundboards
         }
         public bool IsReady()
         {
-            return sourceGameProcess != null && !sourceGameProcess.HasExited && !sourceGameProcess.HasExited && messageClient != null && messageClient.Connected && messageSender != null;
+            return sourceGameProcess != null && !sourceGameProcess.HasExited && /*Utils.GetForegroundWindow() == sourceGameProcess.MainWindowHandle && */
+                   messageClient != null && messageClient.Connected && messageSender != null;
         }
     }
 }

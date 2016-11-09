@@ -86,6 +86,7 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="WebSocket4Net, Version=0.14.1.0, Culture=neutral, PublicKeyToken=eb4e154b696bf72a, processorArchitecture=MSIL">
@@ -94,31 +95,33 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="VACDisclaimerDialog.cs">
+    <Compile Include="Forms\FlatProgressBar.cs" />
+    <Compile Include="MicrophoneHelper.cs" />
+    <Compile Include="Forms\VACDisclaimerDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="VACDisclaimerDialog.Designer.cs">
+    <Compile Include="Forms\VACDisclaimerDialog.Designer.cs">
       <DependentUpon>VACDisclaimerDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="Soundboards\DiscordSoundboard.cs" />
-    <Compile Include="MainForm.cs">
+    <Compile Include="Forms\MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="MainForm.Designer.cs">
+    <Compile Include="Forms\MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="NewGroupDialog.cs">
+    <Compile Include="Forms\NewGroupDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="NewGroupDialog.Designer.cs">
+    <Compile Include="Forms\NewGroupDialog.Designer.cs">
       <DependentUpon>NewGroupDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SettingsForm.cs">
+    <Compile Include="Forms\SettingsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SettingsForm.Designer.cs">
+    <Compile Include="Forms\SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Soundboards\ISoundboard.cs" />
@@ -126,19 +129,19 @@
     <Compile Include="Soundboards\SoundBoardMode.cs" />
     <Compile Include="Soundboards\SourceSoundboard.cs" />
     <Compile Include="SoundData.cs" />
-    <Compile Include="ToastInfoForm.cs">
+    <Compile Include="Forms\ToastInfoForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ToastInfoForm.Designer.cs">
+    <Compile Include="Forms\ToastInfoForm.Designer.cs">
       <DependentUpon>ToastInfoForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Utils.cs" />
     <Compile Include="VolumeMixer.cs" />
     <Compile Include="WindowSizeGetter.cs" />
-    <EmbeddedResource Include="MainForm.resx">
+    <EmbeddedResource Include="Forms\MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="NewGroupDialog.resx">
+    <EmbeddedResource Include="Forms\NewGroupDialog.resx">
       <DependentUpon>NewGroupDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -151,13 +154,13 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <EmbeddedResource Include="SettingsForm.resx">
+    <EmbeddedResource Include="Forms\SettingsForm.resx">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="ToastInfoForm.resx">
+    <EmbeddedResource Include="Forms\ToastInfoForm.resx">
       <DependentUpon>ToastInfoForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="VACDisclaimerDialog.resx">
+    <EmbeddedResource Include="Forms\VACDisclaimerDialog.resx">
       <DependentUpon>VACDisclaimerDialog.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="packages.config" />
@@ -173,6 +176,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon.ico" />
+    <Content Include="Resources\muted_notification.wav" />
     <None Include="Resources\ToastIcon.png" />
     <None Include="Resources\ToastBackground.png" />
   </ItemGroup>

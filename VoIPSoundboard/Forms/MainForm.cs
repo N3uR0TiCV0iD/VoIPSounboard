@@ -21,6 +21,7 @@ namespace HiT.VoIPSoundboard
         DiscordSoundboard discordSoundboard;
         SourceSoundboard sourceSoundboard;
         SkypeSoundboard skypeSoundboard;
+        SettingsForm openSettingsForm;
         SoundBoardMode soundboardMode;
         ISoundboard activeSoundboard;
         ToastInfoForm toastInfoForm;
@@ -48,7 +49,7 @@ namespace HiT.VoIPSoundboard
             this.playerTimer = new Stopwatch();
             this.soundGroups = new List<string>();
             this.globalHotkeys = new Keys[GLOBAL_HOTKEYS];
-            this.sourceSoundboard = new SourceSoundboard(trayIcon);
+            this.sourceSoundboard = new SourceSoundboard(this);
             this.sounds = new Dictionary<string, List<SoundData>>();
             if (!Directory.Exists("soundboard\\"))
             {
@@ -69,22 +70,7 @@ namespace HiT.VoIPSoundboard
                     checkFullScreen = registryValue != null && (int)registryValue == 1;
                     registryValue = appRegistryKey.GetValue("FullScreenStatus");
                     this.skypeSoundboard = new SkypeSoundboard(trayIcon, checkFullScreen, registryValue != null ? (TUserStatus)registryValue : TUserStatus.cusDoNotDisturb);
-                    registryValue = appRegistryKey.GetValue("DiscordEmail");
-                    if (registryValue != null)
-                    {
-                        string email = registryValue.ToString();
-                        registryValue = appRegistryKey.GetValue("DiscordPassword");
-                        if (registryValue != null)
-                        {
-                            string password = registryValue.ToString();
-                            registryValue = appRegistryKey.GetValue("DiscordFollowing");
-                            this.discordSoundboard = new DiscordSoundboard(email, password, registryValue != null ? Convert.ToUInt64(registryValue) : 0);
-                        }
-                    }
-                    if (this.discordSoundboard == null)
-                    {
-                        this.discordSoundboard = new DiscordSoundboard();
-                    }
+                    this.discordSoundboard = new DiscordSoundboard(appRegistryKey);
                     registryValue = appRegistryKey.GetValue("SoundboardMode");
                     if (registryValue != null)
                     {
@@ -175,6 +161,13 @@ namespace HiT.VoIPSoundboard
                 return skypeSoundboard;
             }
         }
+        public NotifyIcon TrayIcon
+        {
+            get
+            {
+                return trayIcon;
+            }
+        }
         private void MainForm_Load(object sender, EventArgs e)
         {
             this.managerThread = new Thread(() => InitializeManager());
@@ -233,7 +226,7 @@ namespace HiT.VoIPSoundboard
                         case "hl2":
                         case "csgo":
                         case "dota2":
-                            if (sourceSoundboard.SourceGameProcess == null)
+                            if (sourceSoundboard.SourceGameProcess == null && !currProcess.HasExited && (DateTime.Now - currProcess.StartTime).TotalSeconds >= 3)
                             {
                                 sourceSoundboard.SourceGameProcess = currProcess;
                             }
@@ -304,9 +297,13 @@ namespace HiT.VoIPSoundboard
                                 case 5:
                                     if (soundboardMode == SoundBoardMode.Skype && skypeSoundboard.HasProcess())
                                     {
-                                        bool isMuted = VolumeMixer.GetApplicationMute(skypeSoundboard.SkypeProcess.Id);
-                                        VolumeMixer.SetApplicationMute(skypeSoundboard.SkypeProcess.Id, !isMuted);
-                                        NotifyViaToast("Skype has been " + (!isMuted ? "deafened." : "undeafened."));
+                                        object returnObject = VolumeMixer.GetApplicationMute(skypeSoundboard.SkypeProcess.Id);
+                                        if (returnObject != null)
+                                        {
+                                            bool isMuted = Convert.ToBoolean(returnObject);
+                                            VolumeMixer.SetApplicationMute(skypeSoundboard.SkypeProcess.Id, !isMuted);
+                                            NotifyViaToast("Skype has been " + (!isMuted ? "deafened." : "undeafened."));
+                                        }
                                     }
                                 break;
                             }
@@ -362,21 +359,22 @@ namespace HiT.VoIPSoundboard
         }
         private void PlaySoundFile(string soundFilePath)
         {
-            TimeSpan soundLength;
-            bool stopped = false;
-            playerTimer.Restart();
             using (WaveFileReader waveFileReader = new WaveFileReader(soundFilePath))
             {
-                soundLength = waveFileReader.TotalTime;
                 activeSoundboard.PlayFile(Application.StartupPath + "\\" + soundFilePath, waveFileReader);
-                playerTimer.Start();
-                while (!stopped && playerTimer.Elapsed <= soundLength && !Environment.HasShutdownStarted)
-                {
-                    stopped = IsKeyDown(globalHotkeys[GLOBAL_HOTKEYS - 1]);
-                    Thread.Sleep(50);
-                }
+                WaitForSoundEnd(waveFileReader.TotalTime);
             }
             activeSoundboard.StopPlaying();
+        }
+        public void WaitForSoundEnd(TimeSpan soundLength)
+        {
+            bool stopped = false;
+            playerTimer.Restart();
+            while (!stopped && playerTimer.Elapsed <= soundLength && !Environment.HasShutdownStarted)
+            {
+                stopped = IsKeyDown(globalHotkeys[GLOBAL_HOTKEYS - 1]);
+                Thread.Sleep(50);
+            }
         }
         private bool IsKeyDown(Keys key)
         {
@@ -469,52 +467,59 @@ namespace HiT.VoIPSoundboard
                     {
                         currFileName = Path.GetFileNameWithoutExtension(currSoundPath);
                         currFilePath = "soundboard\\" + currGroupName + "\\" + currFileName + ".wav";
-                        switch (Path.GetExtension(currSoundPath))
+                        if (!File.Exists(currFilePath))
                         {
-                            case ".wav":
-                                using (WaveFileReader waveFileReader = new WaveFileReader(currSoundPath))
-                                {
-                                    var currSoundFormat = waveFileReader.WaveFormat;
-                                    if (currSoundFormat.Channels != 1 || currSoundFormat.SampleRate != 16000 ||
-                                        currSoundFormat.BitsPerSample != 16 || currSoundFormat.Encoding != WaveFormatEncoding.Pcm)
+                            switch (Path.GetExtension(currSoundPath))
+                            {
+                                case ".wav":
+                                    using (WaveFileReader waveFileReader = new WaveFileReader(currSoundPath))
                                     {
-                                        using (WaveStream waveStream = new WaveFormatConversionStream(new WaveFormat(16000, 16, 1), waveFileReader))
+                                        var currSoundFormat = waveFileReader.WaveFormat;
+                                        if (currSoundFormat.Channels != 1 || currSoundFormat.SampleRate != 16000 ||
+                                            currSoundFormat.BitsPerSample != 16 || currSoundFormat.Encoding != WaveFormatEncoding.Pcm)
+                                        {
+                                            using (WaveStream waveStream = new WaveFormatConversionStream(new WaveFormat(16000, 16, 1), waveFileReader))
+                                            {
+                                                WaveFileWriter.CreateWaveFile(currFilePath, waveStream);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            File.Copy(currSoundPath, currFilePath);
+                                            converted = false;
+                                        }
+                                    }
+                                break;
+                                case ".mp3":
+                                    using (Mp3FileReader mp3FileReader = new Mp3FileReader(currSoundPath))
+                                    {
+                                        using (WaveStream waveStream = new WaveFormatConversionStream(new WaveFormat(16000, 16, 1), mp3FileReader))
                                         {
                                             WaveFileWriter.CreateWaveFile(currFilePath, waveStream);
                                         }
                                     }
-                                    else
-                                    {
-                                        File.Copy(currSoundPath, currFilePath);
-                                        converted = false;
-                                    }
-                                }
-                            break;
-                            case ".mp3":
-                                using (Mp3FileReader mp3FileReader = new Mp3FileReader(currSoundPath))
+                                break;
+                            }
+                            soundboardList.Items.Add(currFileName);
+                            if (converted && MessageBox.Show("The sound file has been converted into a compatible format. Do you wish to delete the old file?",
+                                                             "Delete old file?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes && File.Exists(currSoundPath))
+                            {
+                                try
                                 {
-                                    using (WaveStream waveStream = new WaveFormatConversionStream(new WaveFormat(16000, 16, 1), mp3FileReader))
-                                    {
-                                        WaveFileWriter.CreateWaveFile(currFilePath, waveStream);
-                                    }
+                                    File.Delete(currSoundPath);
                                 }
-                            break;
+                                catch (Exception ex)
+                                {
+                                    Utils.ShowUnhandledException(ex, "MainForm->addSoundButton_Click");
+                                }
+                            }
+                            sounds[currGroupName].Add(new SoundData(currFileName, currFilePath, Keys.None, 0));
+                            soundboardList.SelectedIndex = soundboardList.Items.Count - 1;
                         }
-                        soundboardList.Items.Add(currFileName);
-                        if (converted && MessageBox.Show("The sound file has been converted into a compatible format. Do you wish to delete the old file?",
-                                                         "Delete old file?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes && File.Exists(currSoundPath))
+                        else
                         {
-                            try
-                            {
-                                File.Delete(currSoundPath);
-                            }
-                            catch (Exception ex)
-                            {
-                                Utils.ShowUnhandledException(ex, "MainForm->addSoundButton_Click");
-                            }
+                            MessageBox.Show("ERROR: A soundfile with the name \"" + currFileName + "\" already exists!", "ERROR: Soundfile name conflict.", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
-                        sounds[currGroupName].Add(new SoundData(currFileName, currFilePath, Keys.None, 0));
-                        soundboardList.SelectedIndex = soundboardList.Items.Count - 1;
                     }
                 }
             }
@@ -570,7 +575,23 @@ namespace HiT.VoIPSoundboard
         }
         private void soundNameBox_TextChanged(object sender, EventArgs e)
         {
-            saveNameButton.Enabled = soundNameBox.Text != String.Empty;
+            if (soundNameBox.Text != String.Empty)
+            {
+                bool enabled = true;
+                foreach (var currSoundData in sounds[currGroupName])
+                {
+                    if (soundNameBox.Text == currSoundData.Name)
+                    {
+                        enabled = false;
+                        break;
+                    }
+                }
+                soundNameBox.Enabled = enabled;
+            }
+            else
+            {
+                saveNameButton.Enabled = false;
+            }
         }
         private void saveNameButton_Click(object sender, EventArgs e)
         {
@@ -665,11 +686,32 @@ namespace HiT.VoIPSoundboard
         }
         private void settingsMenuItem_Click(object sender, EventArgs e)
         {
-            using (SettingsForm settingsForm = new SettingsForm(this))
+            if (openSettingsForm == null)
             {
-                settingsForm.ShowDialog();
-                globalHotkeys[4] = settingsForm.SkypeKeys[0];
-                globalHotkeys[5] = settingsForm.SkypeKeys[1];
+                using (SettingsForm settingsForm = new SettingsForm(this))
+                {
+                    openSettingsForm = settingsForm;
+                    try
+                    {
+                        settingsForm.ShowDialog();
+                    }
+                    catch (Exception ex)
+                    {
+                        using (StreamWriter logWriter = new StreamWriter("log.txt"))
+                        {
+                            logWriter.WriteLine(ex.StackTrace);
+                        }
+                        Process.Start("log.txt");
+                    }
+                    globalHotkeys[4] = settingsForm.SkypeKeys[0];
+                    globalHotkeys[5] = settingsForm.SkypeKeys[1];
+                    openSettingsForm = null;
+                }
+            }
+            else
+            {
+                openSettingsForm.WindowState = FormWindowState.Normal;
+                openSettingsForm.Show();
             }
         }
         private void sourceGameMenuItem_Click(object sender, EventArgs e)

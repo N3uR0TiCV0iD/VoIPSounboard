@@ -39,13 +39,14 @@
             this.fullscreenStatusBox = new System.Windows.Forms.ComboBox();
             this.fullscreenCheckBox = new System.Windows.Forms.CheckBox();
             this.discordSettingsBox = new System.Windows.Forms.GroupBox();
+            this.peakPercentageLabel = new System.Windows.Forms.Label();
+            this.microphonesBox = new System.Windows.Forms.ComboBox();
+            this.micSourceLabel = new System.Windows.Forms.Label();
             this.inviteBox = new System.Windows.Forms.TextBox();
             this.acceptInviteButton = new System.Windows.Forms.Button();
             this.inviteLabel = new System.Windows.Forms.Label();
-            this.selectedServerLogoBox = new System.Windows.Forms.PictureBox();
             this.serversBox = new System.Windows.Forms.ListBox();
             this.leaveServerButton = new System.Windows.Forms.Button();
-            this.selectedUserAvatarBox = new System.Windows.Forms.PictureBox();
             this.followButton = new System.Windows.Forms.Button();
             this.fetchedUsersBox = new System.Windows.Forms.ListBox();
             this.fetchUsersButton = new System.Windows.Forms.Button();
@@ -54,13 +55,22 @@
             this.emailBox = new System.Windows.Forms.TextBox();
             this.passwordLabel = new System.Windows.Forms.Label();
             this.emailLabel = new System.Windows.Forms.Label();
+            this.speakMutedNotifyBox = new System.Windows.Forms.CheckBox();
+            this.peakNotificationTrackBar = new System.Windows.Forms.TrackBar();
             this.pictureBoxContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.saveMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.copycatMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.driverSettingsBox = new System.Windows.Forms.GroupBox();
+            this.toolTip = new System.Windows.Forms.ToolTip(this.components);
+            this.selectedServerLogoBox = new System.Windows.Forms.PictureBox();
+            this.selectedUserAvatarBox = new System.Windows.Forms.PictureBox();
+            this.microphonePeakBar = new HiT.VoIPSoundboard.FlatProgressBar();
             this.skypeSettingsBox.SuspendLayout();
             this.discordSettingsBox.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).BeginInit();
+            this.pictureBoxContextMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.selectedServerLogoBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.selectedUserAvatarBox)).BeginInit();
-            this.pictureBoxContextMenu.SuspendLayout();
             this.SuspendLayout();
             // 
             // deafenHKButton
@@ -160,8 +170,10 @@
             // 
             // discordSettingsBox
             // 
-            this.discordSettingsBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left)));
+            this.discordSettingsBox.Controls.Add(this.microphonePeakBar);
+            this.discordSettingsBox.Controls.Add(this.peakPercentageLabel);
+            this.discordSettingsBox.Controls.Add(this.microphonesBox);
+            this.discordSettingsBox.Controls.Add(this.micSourceLabel);
             this.discordSettingsBox.Controls.Add(this.inviteBox);
             this.discordSettingsBox.Controls.Add(this.acceptInviteButton);
             this.discordSettingsBox.Controls.Add(this.inviteLabel);
@@ -177,30 +189,64 @@
             this.discordSettingsBox.Controls.Add(this.emailBox);
             this.discordSettingsBox.Controls.Add(this.passwordLabel);
             this.discordSettingsBox.Controls.Add(this.emailLabel);
+            this.discordSettingsBox.Controls.Add(this.speakMutedNotifyBox);
+            this.discordSettingsBox.Controls.Add(this.peakNotificationTrackBar);
             this.discordSettingsBox.Location = new System.Drawing.Point(10, 135);
             this.discordSettingsBox.Name = "discordSettingsBox";
-            this.discordSettingsBox.Size = new System.Drawing.Size(215, 400);
-            this.discordSettingsBox.TabIndex = 1;
+            this.discordSettingsBox.Size = new System.Drawing.Size(420, 250);
+            this.discordSettingsBox.TabIndex = 2;
             this.discordSettingsBox.TabStop = false;
             this.discordSettingsBox.Text = "Discord Settings";
+            // 
+            // peakPercentageLabel
+            // 
+            this.peakPercentageLabel.AutoSize = true;
+            this.peakPercentageLabel.Enabled = false;
+            this.peakPercentageLabel.Location = new System.Drawing.Point(335, 75);
+            this.peakPercentageLabel.Name = "peakPercentageLabel";
+            this.peakPercentageLabel.Size = new System.Drawing.Size(21, 13);
+            this.peakPercentageLabel.TabIndex = 13;
+            this.peakPercentageLabel.Text = "0%";
+            // 
+            // microphonesBox
+            // 
+            this.microphonesBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.microphonesBox.Enabled = false;
+            this.microphonesBox.FormattingEnabled = true;
+            this.microphonesBox.Location = new System.Drawing.Point(275, 20);
+            this.microphonesBox.Name = "microphonesBox";
+            this.microphonesBox.Size = new System.Drawing.Size(135, 21);
+            this.microphonesBox.TabIndex = 9;
+            this.microphonesBox.DropDown += new System.EventHandler(this.microphonesBox_DropDown);
+            this.microphonesBox.SelectedIndexChanged += new System.EventHandler(this.microphonesBox_SelectedIndexChanged);
+            // 
+            // micSourceLabel
+            // 
+            this.micSourceLabel.AutoSize = true;
+            this.micSourceLabel.Enabled = false;
+            this.micSourceLabel.Location = new System.Drawing.Point(212, 23);
+            this.micSourceLabel.Name = "micSourceLabel";
+            this.micSourceLabel.Size = new System.Drawing.Size(62, 13);
+            this.micSourceLabel.TabIndex = 8;
+            this.micSourceLabel.Text = "Mic source:";
             // 
             // inviteBox
             // 
             this.inviteBox.Enabled = false;
-            this.inviteBox.Location = new System.Drawing.Point(45, 245);
+            this.inviteBox.Location = new System.Drawing.Point(250, 95);
             this.inviteBox.Name = "inviteBox";
             this.inviteBox.Size = new System.Drawing.Size(125, 20);
-            this.inviteBox.TabIndex = 9;
+            this.inviteBox.TabIndex = 15;
             this.inviteBox.TextChanged += new System.EventHandler(this.inviteBox_TextChanged);
             this.inviteBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inviteBox_KeyDown);
             // 
             // acceptInviteButton
             // 
             this.acceptInviteButton.Enabled = false;
-            this.acceptInviteButton.Location = new System.Drawing.Point(174, 245);
+            this.acceptInviteButton.Location = new System.Drawing.Point(380, 95);
             this.acceptInviteButton.Name = "acceptInviteButton";
-            this.acceptInviteButton.Size = new System.Drawing.Size(32, 20);
-            this.acceptInviteButton.TabIndex = 10;
+            this.acceptInviteButton.Size = new System.Drawing.Size(30, 20);
+            this.acceptInviteButton.TabIndex = 16;
             this.acceptInviteButton.Text = "OK";
             this.acceptInviteButton.UseVisualStyleBackColor = true;
             this.acceptInviteButton.Click += new System.EventHandler(this.acceptInviteButton_Click);
@@ -208,53 +254,31 @@
             // inviteLabel
             // 
             this.inviteLabel.AutoSize = true;
-            this.inviteLabel.Location = new System.Drawing.Point(10, 248);
+            this.inviteLabel.Location = new System.Drawing.Point(215, 98);
             this.inviteLabel.Name = "inviteLabel";
             this.inviteLabel.Size = new System.Drawing.Size(36, 13);
-            this.inviteLabel.TabIndex = 8;
+            this.inviteLabel.TabIndex = 14;
             this.inviteLabel.Text = "Invite:";
-            // 
-            // selectedServerLogoBox
-            // 
-            this.selectedServerLogoBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.selectedServerLogoBox.Location = new System.Drawing.Point(142, 285);
-            this.selectedServerLogoBox.Name = "selectedServerLogoBox";
-            this.selectedServerLogoBox.Size = new System.Drawing.Size(64, 64);
-            this.selectedServerLogoBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.selectedServerLogoBox.TabIndex = 12;
-            this.selectedServerLogoBox.TabStop = false;
-            this.selectedServerLogoBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedServerLogoBox_MouseClick);
             // 
             // serversBox
             // 
             this.serversBox.FormattingEnabled = true;
-            this.serversBox.Location = new System.Drawing.Point(10, 275);
+            this.serversBox.Location = new System.Drawing.Point(215, 125);
             this.serversBox.Name = "serversBox";
             this.serversBox.Size = new System.Drawing.Size(129, 82);
-            this.serversBox.TabIndex = 11;
+            this.serversBox.TabIndex = 17;
             this.serversBox.SelectedIndexChanged += new System.EventHandler(this.serversBox_SelectedIndexChanged);
             // 
             // leaveServerButton
             // 
             this.leaveServerButton.Enabled = false;
-            this.leaveServerButton.Location = new System.Drawing.Point(10, 365);
+            this.leaveServerButton.Location = new System.Drawing.Point(215, 215);
             this.leaveServerButton.Name = "leaveServerButton";
             this.leaveServerButton.Size = new System.Drawing.Size(196, 23);
-            this.leaveServerButton.TabIndex = 12;
+            this.leaveServerButton.TabIndex = 19;
             this.leaveServerButton.Text = "Leave";
             this.leaveServerButton.UseVisualStyleBackColor = true;
             this.leaveServerButton.Click += new System.EventHandler(this.leaveServerButton_Click);
-            // 
-            // selectedUserAvatarBox
-            // 
-            this.selectedUserAvatarBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.selectedUserAvatarBox.Location = new System.Drawing.Point(142, 134);
-            this.selectedUserAvatarBox.Name = "selectedUserAvatarBox";
-            this.selectedUserAvatarBox.Size = new System.Drawing.Size(64, 64);
-            this.selectedUserAvatarBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.selectedUserAvatarBox.TabIndex = 9;
-            this.selectedUserAvatarBox.TabStop = false;
-            this.selectedUserAvatarBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedUserAvatarBox_MouseClick);
             // 
             // followButton
             // 
@@ -330,26 +354,101 @@
             this.emailLabel.TabIndex = 0;
             this.emailLabel.Text = "Email:";
             // 
+            // speakMutedNotifyBox
+            // 
+            this.speakMutedNotifyBox.AutoSize = true;
+            this.speakMutedNotifyBox.Location = new System.Drawing.Point(332, 45);
+            this.speakMutedNotifyBox.Name = "speakMutedNotifyBox";
+            this.speakMutedNotifyBox.Size = new System.Drawing.Size(85, 30);
+            this.speakMutedNotifyBox.TabIndex = 11;
+            this.speakMutedNotifyBox.Text = "Notify speak\r\nwhile muted";
+            this.speakMutedNotifyBox.UseVisualStyleBackColor = true;
+            this.speakMutedNotifyBox.CheckedChanged += new System.EventHandler(this.speakMutedNotifyBox_CheckedChanged);
+            // 
+            // peakNotificationTrackBar
+            // 
+            this.peakNotificationTrackBar.AutoSize = false;
+            this.peakNotificationTrackBar.Enabled = false;
+            this.peakNotificationTrackBar.Location = new System.Drawing.Point(202, 63);
+            this.peakNotificationTrackBar.Maximum = 30;
+            this.peakNotificationTrackBar.Name = "peakNotificationTrackBar";
+            this.peakNotificationTrackBar.Size = new System.Drawing.Size(137, 28);
+            this.peakNotificationTrackBar.TabIndex = 12;
+            this.peakNotificationTrackBar.TickStyle = System.Windows.Forms.TickStyle.TopLeft;
+            this.peakNotificationTrackBar.ValueChanged += new System.EventHandler(this.peakNotificationTrackBar_ValueChanged);
+            // 
             // pictureBoxContextMenu
             // 
             this.pictureBoxContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.saveMenuItem});
+            this.saveMenuItem,
+            this.copycatMenuItem});
             this.pictureBoxContextMenu.Name = "userAvatarContextMenu";
-            this.pictureBoxContextMenu.Size = new System.Drawing.Size(102, 26);
+            this.pictureBoxContextMenu.Size = new System.Drawing.Size(119, 48);
             // 
             // saveMenuItem
             // 
             this.saveMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.saveMenuItem.Name = "saveMenuItem";
-            this.saveMenuItem.Size = new System.Drawing.Size(101, 22);
+            this.saveMenuItem.Size = new System.Drawing.Size(118, 22);
             this.saveMenuItem.Text = "Save";
             this.saveMenuItem.Click += new System.EventHandler(this.saveMenuItem_Click);
+            // 
+            // copycatMenuItem
+            // 
+            this.copycatMenuItem.Name = "copycatMenuItem";
+            this.copycatMenuItem.Size = new System.Drawing.Size(118, 22);
+            this.copycatMenuItem.Text = "Copycat";
+            this.copycatMenuItem.Click += new System.EventHandler(this.copycatMenuItem_Click);
+            // 
+            // driverSettingsBox
+            // 
+            this.driverSettingsBox.Location = new System.Drawing.Point(235, 10);
+            this.driverSettingsBox.Name = "driverSettingsBox";
+            this.driverSettingsBox.Size = new System.Drawing.Size(195, 120);
+            this.driverSettingsBox.TabIndex = 1;
+            this.driverSettingsBox.TabStop = false;
+            this.driverSettingsBox.Text = "Driver Settings";
+            // 
+            // selectedServerLogoBox
+            // 
+            this.selectedServerLogoBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.selectedServerLogoBox.Location = new System.Drawing.Point(347, 135);
+            this.selectedServerLogoBox.Name = "selectedServerLogoBox";
+            this.selectedServerLogoBox.Size = new System.Drawing.Size(64, 64);
+            this.selectedServerLogoBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.selectedServerLogoBox.TabIndex = 12;
+            this.selectedServerLogoBox.TabStop = false;
+            this.selectedServerLogoBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedServerLogoBox_MouseClick);
+            // 
+            // selectedUserAvatarBox
+            // 
+            this.selectedUserAvatarBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.selectedUserAvatarBox.Location = new System.Drawing.Point(142, 134);
+            this.selectedUserAvatarBox.Name = "selectedUserAvatarBox";
+            this.selectedUserAvatarBox.Size = new System.Drawing.Size(64, 64);
+            this.selectedUserAvatarBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.selectedUserAvatarBox.TabIndex = 9;
+            this.selectedUserAvatarBox.TabStop = false;
+            this.selectedUserAvatarBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedUserAvatarBox_MouseClick);
+            // 
+            // microphonePeakBar
+            // 
+            this.microphonePeakBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(0)))));
+            this.microphonePeakBar.Enabled = false;
+            this.microphonePeakBar.Location = new System.Drawing.Point(215, 45);
+            this.microphonePeakBar.Maximum = 100;
+            this.microphonePeakBar.Minimum = 0;
+            this.microphonePeakBar.Name = "microphonePeakBar";
+            this.microphonePeakBar.Size = new System.Drawing.Size(112, 20);
+            this.microphonePeakBar.TabIndex = 10;
+            this.microphonePeakBar.Value = 0;
             // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(234, 542);
+            this.ClientSize = new System.Drawing.Size(439, 392);
+            this.Controls.Add(this.driverSettingsBox);
             this.Controls.Add(this.discordSettingsBox);
             this.Controls.Add(this.skypeSettingsBox);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -357,14 +456,17 @@
             this.MaximizeBox = false;
             this.Name = "SettingsForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "VoIP Settings";
+            this.Text = "VoIPSoundboard Settings";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SettingsForm_FormClosed);
+            this.Load += new System.EventHandler(this.SettingsForm_Load);
             this.skypeSettingsBox.ResumeLayout(false);
             this.skypeSettingsBox.PerformLayout();
             this.discordSettingsBox.ResumeLayout(false);
             this.discordSettingsBox.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).EndInit();
+            this.pictureBoxContextMenu.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.selectedServerLogoBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.selectedUserAvatarBox)).EndInit();
-            this.pictureBoxContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -397,5 +499,14 @@
         private System.Windows.Forms.PictureBox selectedServerLogoBox;
         private System.Windows.Forms.ListBox serversBox;
         private System.Windows.Forms.Button leaveServerButton;
+        private System.Windows.Forms.ComboBox microphonesBox;
+        private System.Windows.Forms.GroupBox driverSettingsBox;
+        private System.Windows.Forms.ToolTip toolTip;
+        private System.Windows.Forms.Label micSourceLabel;
+        private System.Windows.Forms.TrackBar peakNotificationTrackBar;
+        private System.Windows.Forms.ToolStripMenuItem copycatMenuItem;
+        private System.Windows.Forms.Label peakPercentageLabel;
+        private System.Windows.Forms.CheckBox speakMutedNotifyBox;
+        private FlatProgressBar microphonePeakBar;
     }
 }
