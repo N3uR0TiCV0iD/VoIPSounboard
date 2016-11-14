@@ -4,10 +4,12 @@ using System.Net;
 using System.Web;
 using System.Text;
 using NAudio.Wave;
+using Microsoft.Win32;
 using System.Threading;
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 namespace HiT.VoIPSoundboard.Soundboards
 {
@@ -20,29 +22,119 @@ namespace HiT.VoIPSoundboard.Soundboards
     }
     public class SourceSoundboard : ISoundboard
     {
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern int CloseHandle(IntPtr hObject);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr GetModuleHandle(string lpModuleName);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(uint dwDesiredAccess, int bInheritHandle, uint dwProcessId);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern int WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] buffer, uint size, int lpNumberOfBytesWritten);
-        [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttribute, IntPtr dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+        [DllImport("user32.dll")] private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+        [DllImport("kernel32.dll")] private static extern int CloseHandle(IntPtr hObject);
+        [DllImport("kernel32.dll")] private static extern IntPtr GetModuleHandle(string lpModuleName);
+        [DllImport("kernel32.dll")] private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+        [DllImport("kernel32.dll")] private static extern IntPtr OpenProcess(uint dwDesiredAccess, int bInheritHandle, uint dwProcessId);
+        [DllImport("kernel32.dll")] private static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint dwFreeType);
+        [DllImport("kernel32.dll")] private static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
+        [DllImport("kernel32.dll")] private static extern int WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] buffer, uint size, int lpNumberOfBytesWritten);
+        [DllImport("kernel32.dll")] private static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttribute, IntPtr dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
         static readonly string SOURCEPLUGIN_PATH = Application.StartupPath + "\\VoIPSoundboard_SourcePlugin.dll";
-        static readonly string TTSTMP_PATH = Path.GetTempPath() + "\\tts_tmp.mp3";
         WaveFormat gameVoiceSampleFormat;
+        IntPtr gameMainWindowHandle;
         IntPtr loadLibraryMethodPtr;
+        List<TTSBankData> ttsBanks;
         BinaryWriter messageSender;
         Thread messageReaderThread;
         Process sourceGameProcess;
         string gameRootDirectory;
         TcpClient messageClient;
+        int selectedVoiceIndex;
+        int selectedBankIndex;
         NotifyIcon trayIcon;
         MainForm mainForm;
         public SourceSoundboard(MainForm mainForm)
         {
+            string newItemName;
+            int currBankIndex = 0;
+            bool parsedBanks = false;
+            bool foundFieldset = false;
+            this.ttsBanks = new List<TTSBankData>();
+            using (WebClient webClient = new WebClient())
+            {
+                foreach (var currLine in webClient.DownloadString("http://www.acapela-group.com/demo-tts/DemoHTML5Form_V2.php").Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (foundFieldset)
+                    {
+                        if (currLine.EndsWith("</option>"))
+                        {
+                            if (!parsedBanks)
+                            {
+                                //Is parsing banks
+                                newItemName = currLine.Substring(11, currLine.Length - 36);
+                                ttsBanks.Add(new TTSBankData(newItemName));
+                            }
+                            else
+                            {
+                                //Is parsing voices
+                                newItemName = null;
+                                for (int currLineChar = currLine.Length - 10; currLineChar >= 0; currLineChar--)
+                                {
+                                    if (currLine[currLineChar] == '>')
+                                    {
+                                        newItemName = currLine.Substring(currLineChar + 1, currLine.Length - currLineChar - 10);
+                                        break;
+                                    }
+                                }
+                                if (newItemName != null)
+                                {
+                                    ttsBanks[currBankIndex].AddVoice(newItemName);
+                                }
+                            }
+                        }
+                        else if (parsedBanks && currLine.EndsWith("</select>"))
+                        {
+                            currBankIndex++;
+                        }
+                        else if (currLine.EndsWith("</fieldset>"))
+                        {
+                            if (!parsedBanks)
+                            {
+                                foundFieldset = false;
+                                parsedBanks = true;
+                            }
+                            else
+                            {
+                                break; //We have parsed both the banks and the voices, I think we are done here...
+                            }
+                        }
+                    }
+                    else if (currLine.EndsWith("<fieldset>"))
+                    {
+                        foundFieldset = true;
+                    }
+                }
+            }
             this.loadLibraryMethodPtr = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
             this.trayIcon = mainForm.TrayIcon;
             this.mainForm = mainForm;
+        }
+        public SourceSoundboard(MainForm mainForm, RegistryKey appRegistryKey) : this(mainForm)
+        {
+            object registryValue = appRegistryKey.GetValue("TTSVoiceName");
+            string lastSessionVoice;
+            if (registryValue != null)
+            {
+                lastSessionVoice = registryValue.ToString();
+            }
+            else
+            {
+                lastSessionVoice = "Ryan";
+            }
+            for (int currBankIndex = 0; currBankIndex < this.ttsBanks.Count; currBankIndex++)
+            {
+                for (int currVoiceIndex = 0; currVoiceIndex < this.ttsBanks[currBankIndex].VoicesCount; currVoiceIndex++)
+                {
+                    if (this.ttsBanks[currBankIndex].GetVoice(currVoiceIndex) == lastSessionVoice)
+                    {
+                        this.selectedVoiceIndex = currVoiceIndex;
+                        this.selectedBankIndex = currBankIndex;
+                        return;
+                    }
+                }
+            }
         }
         public Process SourceGameProcess
         {
@@ -54,6 +146,7 @@ namespace HiT.VoIPSoundboard.Soundboards
             {
                 string readLine;
                 sourceGameProcess = value;
+                gameMainWindowHandle = IntPtr.Zero;
                 gameRootDirectory = Path.GetDirectoryName(value.MainModule.FileName);
                 using (StreamReader appIDReader = new StreamReader(gameRootDirectory + "\\steam_appid.txt"))
                 {
@@ -96,6 +189,46 @@ namespace HiT.VoIPSoundboard.Soundboards
                 }
             }
         }
+        public int SelectedBankIndex
+        {
+            get
+            {
+                return selectedBankIndex;
+            }
+            set
+            {
+                selectedBankIndex = value;
+            }
+        }
+        public int SelectedVoiceIndex
+        {
+            get
+            {
+                return selectedVoiceIndex;
+            }
+            set
+            {
+                selectedVoiceIndex = value;
+            }
+        }
+        public string SelectedTTSVoice
+        {
+            get
+            {
+                return ttsBanks[selectedBankIndex].GetVoice(selectedVoiceIndex);
+            }
+        }
+        public int TTSBanksCount
+        {
+            get
+            {
+                return ttsBanks.Count;
+            }
+        }
+        public TTSBankData GetTTSBank(int index)
+        {
+            return ttsBanks[index];
+        }
         public void SoundboardService()
         {
             if (sourceGameProcess != null)
@@ -123,6 +256,10 @@ namespace HiT.VoIPSoundboard.Soundboards
                             NotifyInjection();
                         }
                     }
+                    else if (gameMainWindowHandle == IntPtr.Zero)
+                    {
+                        gameMainWindowHandle = FindWindow("Valve001", null);
+                    }
                 }
                 else
                 {
@@ -139,10 +276,18 @@ namespace HiT.VoIPSoundboard.Soundboards
         }
         private void InjectPlugin()
         {
-            IntPtr processHandle = OpenProcess((0x2 | 0x8 | 0x10 | 0x20 | 0x400), 1, (uint)sourceGameProcess.Id);
+            const int PROCESS_VM_WRITE = 0x20;
+            const int PROCESS_VM_OPERATION = 0x08;
+            const int PROCESS_CREATE_THREAD = 0x02;
+            const int PROCESS_QUERY_INFORMATION = 0x0400;
+            IntPtr processHandle = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, 1, (uint)sourceGameProcess.Id);
             if (processHandle != IntPtr.Zero)
             {
-                IntPtr parameterAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (uint)SOURCEPLUGIN_PATH.Length, (0x1000 | 0x2000), 0X40);
+                const int MEM_COMMIT = 0x1000;
+                const int MEM_RELEASE = 0x800;
+                const int MEM_RESERVE = 0x2000;
+                const int PAGE_EXECUTE_READWRITE = 0x40;
+                IntPtr parameterAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (uint)SOURCEPLUGIN_PATH.Length, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
                 if (parameterAddress != IntPtr.Zero)
                 {
                     byte[] bytes = Encoding.ASCII.GetBytes(SOURCEPLUGIN_PATH);
@@ -171,6 +316,7 @@ namespace HiT.VoIPSoundboard.Soundboards
                             }
                         }
                     }
+                    VirtualFreeEx(processHandle, parameterAddress, (uint)SOURCEPLUGIN_PATH.Length, MEM_RELEASE);
                 }
                 CloseHandle(processHandle);
             }
@@ -185,73 +331,64 @@ namespace HiT.VoIPSoundboard.Soundboards
         }
         private void ReadMessagesService(BinaryReader messageReader)
         {
-            string readLine;
-            bool foundFileURL;
             int messageLength;
-            string ttsMessage;
             byte[] messageBytes;
-            HttpWebRequest ttsRequest;
-            byte[] requestContentBytes;
-            HttpWebResponse ttsResponse;
-            StringBuilder requestContent = new StringBuilder();
+            MemoryStream ttsMP3Stream;
             while (messageClient != null && messageClient.Connected)
             {
                 try
                 {
                     messageLength = messageReader.ReadInt32();
                     messageBytes = messageReader.ReadBytes(messageLength);
-                    ttsMessage = HttpUtility.HtmlEncode(Encoding.ASCII.GetString(messageBytes));
-                    ttsRequest = WebRequest.CreateHttp("http://www.acapela-group.com/demo-tts/DemoHTML5Form_V2.php");
-                    requestContent.Append("MyLanguages=sonid10&0=Leila&1=Laia&2=Eliska&3=Mette&4=Zoe&5=Jasmijn&6=Tyler&7=Deepa&8=Rhona&9=Rachel&");
-                    requestContent.Append("MySelectedVoice=WillLittleCreature+%28emotive+voice%29&");
-                    requestContent.Append("11=Hanna&12=Sanna&13=Manon-be&14=Louise&15=Manon&16=Claudia&17=Dimitris&18=Fabiana&19=Sakura&20=Minji&21=Lulu&22=Bente&23=Monika&24=Marcia&25=Celia&26=Alyona&27=Biera&28=Ines&29=Rodrigo&30=Elin&31=Samuel&32=Kal&33=Mia&34=Ipek&");
-                    requestContent.Append("MyTextForTTS=" + ttsMessage + "&t=1&SendToVaaS=");
-                    requestContentBytes = Encoding.ASCII.GetBytes(requestContent.ToString());
-                    ttsRequest.ContentType = "application/x-www-form-urlencoded";
-                    ttsRequest.ContentLength = requestContentBytes.Length;
-                    ttsRequest.Method = "POST";
-                    using (Stream requestStream = ttsRequest.GetRequestStream())
+                    ttsMP3Stream = RequestTTSFile(Encoding.ASCII.GetString(messageBytes));
+                    if (ttsMP3Stream != null)
                     {
-                        requestStream.Write(requestContentBytes, 0, requestContentBytes.Length);
-                    }
-                    foundFileURL = false;
-                    ttsResponse = (HttpWebResponse)ttsRequest.GetResponse();
-                    using (StreamReader responseReader = new StreamReader(ttsResponse.GetResponseStream()))
-                    {
-                        while (!foundFileURL && !responseReader.EndOfStream)
+                        using (Mp3FileReader mp3FileReader = new Mp3FileReader(ttsMP3Stream))
                         {
-                            readLine = responseReader.ReadLine();
-                            if (readLine.StartsWith("            var myPhpVar"))
-                            {
-                                //MessageBox.Show("<" + readLine + ">");
-                                using (WebClient webClient = new WebClient())
-                                {
-                                    messageBytes = webClient.DownloadData(readLine.Substring(28, readLine.Length - 30));  //Reusing variable...
-                                    using (MemoryStream ttsMP3Stream = new MemoryStream(messageBytes))
-                                    {
-                                        using (Mp3FileReader mp3FileReader = new Mp3FileReader(ttsMP3Stream))
-                                        {
-                                            PlayFile(null, mp3FileReader);
-                                            mainForm.WaitForSoundEnd(mp3FileReader.TotalTime);
-                                            StopPlaying();
-                                        }
-                                    }
-                                }
-                                foundFileURL = true;
-                            }
+                            PlayFile(null, mp3FileReader);
+                            mainForm.WaitForSoundEnd(mp3FileReader.TotalTime);
+                            StopPlaying();
                         }
                     }
-                    requestContent.Clear();
                 }
-                catch (IOException)
-                {
-                    //DO NOTHING...
-                }
+                catch (IOException) { }
                 catch (Exception ex)
                 {
                     Utils.ShowUnhandledException(ex, "SourceSoundboard->ReadMessagesService");
                 }
             }
+        }
+        public MemoryStream RequestTTSFile(string message)
+        {
+            string readLine;
+            HttpWebResponse ttsResponse;
+            HttpWebRequest ttsRequest = WebRequest.CreateHttp("http://www.acapela-group.com/demo-tts/DemoHTML5Form_V2.php");
+            string requestContent = "MyLanguages=sonid" + selectedBankIndex + "&MySelectedVoice=" + HttpUtility.HtmlEncode(this.SelectedTTSVoice) +
+                                    "&MyTextForTTS=" + HttpUtility.HtmlEncode(message) + "&t=1&SendToVaaS=";
+            ttsRequest.ContentType = "application/x-www-form-urlencoded";
+            ttsRequest.ContentLength = requestContent.Length;
+            ttsRequest.Method = "POST";
+            using ( StreamWriter requestWriter = new StreamWriter(ttsRequest.GetRequestStream()) )
+            {
+                requestWriter.Write(requestContent);
+            }
+            ttsResponse = (HttpWebResponse)ttsRequest.GetResponse();
+            using ( StreamReader responseReader = new StreamReader(ttsResponse.GetResponseStream()) )
+            {
+                while (!responseReader.EndOfStream)
+                {
+                    readLine = responseReader.ReadLine();
+                    if (readLine.StartsWith("            var myPhpVar"))
+                    {
+                        //MessageBox.Show("<" + readLine + ">");
+                        using (WebClient webClient = new WebClient())
+                        {
+                            return new MemoryStream( webClient.DownloadData(readLine.Substring(28, readLine.Length - 30)) );
+                        }
+                    }
+                }
+            }
+            return null;
         }
         public void PlayFile(string filePath, WaveStream waveStream)
         {
@@ -280,7 +417,7 @@ namespace HiT.VoIPSoundboard.Soundboards
         }
         public bool IsReady()
         {
-            return sourceGameProcess != null && !sourceGameProcess.HasExited && /*Utils.GetForegroundWindow() == sourceGameProcess.MainWindowHandle && */
+            return sourceGameProcess != null && !sourceGameProcess.HasExited && Utils.GetForegroundWindow() == gameMainWindowHandle &&
                    messageClient != null && messageClient.Connected && messageSender != null;
         }
     }

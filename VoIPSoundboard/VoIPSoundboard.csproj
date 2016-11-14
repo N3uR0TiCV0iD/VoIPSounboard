@@ -95,7 +95,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Forms\FlatProgressBar.cs" />
+    <Compile Include="Forms\FlatProgressBar.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="MicrophoneHelper.cs" />
     <Compile Include="Forms\VACDisclaimerDialog.cs">
       <SubType>Form</SubType>
@@ -126,7 +128,6 @@
     </Compile>
     <Compile Include="Soundboards\ISoundboard.cs" />
     <Compile Include="Soundboards\SkypeSoundboard.cs" />
-    <Compile Include="Soundboards\SoundBoardMode.cs" />
     <Compile Include="Soundboards\SourceSoundboard.cs" />
     <Compile Include="SoundData.cs" />
     <Compile Include="Forms\ToastInfoForm.cs">
@@ -135,6 +136,7 @@
     <Compile Include="Forms\ToastInfoForm.Designer.cs">
       <DependentUpon>ToastInfoForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="TTSBankData.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="VolumeMixer.cs" />
     <Compile Include="WindowSizeGetter.cs" />
@@ -176,6 +178,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon.ico" />
+    <None Include="Resources\ListenTTSIcon.png" />
     <Content Include="Resources\muted_notification.wav" />
     <None Include="Resources\ToastIcon.png" />
     <None Include="Resources\ToastBackground.png" />

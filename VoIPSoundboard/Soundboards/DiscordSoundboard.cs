@@ -335,15 +335,6 @@ namespace HiT.VoIPSoundboard.Soundboards
             this.email = email;
             hasLogin = true;
         }
-        public void SaveSettings(RegistryKey appRegistryKey)
-        {
-            appRegistryKey.SetValue("DiscordEmail", email, RegistryValueKind.String);
-            appRegistryKey.SetValue("DiscordPassword", password, RegistryValueKind.String);
-            appRegistryKey.SetValue("DiscordFollowing", followingUserID, RegistryValueKind.QWord);
-            appRegistryKey.SetValue("DiscordPeakLevel", (int)Math.Round(mutedPeakLevel * 100), RegistryValueKind.DWord);
-            appRegistryKey.SetValue("DiscordMutedTalking", notifyMutedTalking ? 1 : 0, RegistryValueKind.DWord);
-            appRegistryKey.SetValue("DiscordMicrophoneID", microphone != null ? microphoneID : String.Empty, RegistryValueKind.String);
-        }
         public async void JoinVoiceChannel(Channel voiceChannel)
         {
             voiceClient = await client.GetService<AudioService>().Join(voiceChannel);
@@ -351,6 +342,15 @@ namespace HiT.VoIPSoundboard.Soundboards
         public bool IsReady()
         {
             return client.State == ConnectionState.Connected && voiceClient != null && voiceClient.State == ConnectionState.Connected;
+        }
+        public void SaveSettings(RegistryKey appRegistryKey)
+        {
+            appRegistryKey.SetValue("DiscordEmail", email, RegistryValueKind.String);
+            appRegistryKey.SetValue("DiscordPassword", password, RegistryValueKind.String);
+            appRegistryKey.SetValue("DiscordFollowing", followingUserID, RegistryValueKind.QWord);
+            appRegistryKey.SetValue("DiscordPeakLevel", (int)Math.Round(mutedPeakLevel * 100), RegistryValueKind.DWord);
+            appRegistryKey.SetValue("DiscordMutedTalking", notifyMutedTalking ? 1 : 0, RegistryValueKind.DWord);
+            //appRegistryKey.SetValue("DiscordMicrophoneID", microphone != null ? microphoneID : String.Empty, RegistryValueKind.String);
         }
     }
 }

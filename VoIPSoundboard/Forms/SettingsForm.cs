@@ -3,9 +3,12 @@ using Discord;
 using System.IO;
 using System.Net;
 using Discord.Net;
+using NAudio.Wave;
+using System.Media;
 using SKYPE4COMLib;
 using Microsoft.Win32;
 using System.Threading;
+using System.Diagnostics;
 using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.Collections.Generic;
@@ -16,6 +19,7 @@ namespace HiT.VoIPSoundboard
 {
     public partial class SettingsForm : Form
     {
+        static readonly string TTSTMP_PATH = Path.GetTempPath() + "tts_tmp.wav";
         bool closed;
         bool startup;
         Keys[] skypeKeys;
@@ -23,8 +27,10 @@ namespace HiT.VoIPSoundboard
         bool savingAvatar;
         string iconPrefixName;
         Thread microphonePeakThread;
+        List<int> selectedVoicesBanks;
         List<DiscordUser> fetchedUsers;
         SkypeSoundboard skypeSoundboard;
+        SourceSoundboard sourceSoundboard;
         DiscordSoundboard discordSoundboard;
         List<DiscordServer> subscribedServers;
         public SettingsForm(MainForm mainForm)
@@ -32,10 +38,12 @@ namespace HiT.VoIPSoundboard
             this.startup = true;
             InitializeComponent();
             this.skypeKeys = new Keys[2];
+            this.selectedVoicesBanks = new List<int>();
             this.fetchedUsers = new List<DiscordUser>();
             this.skypeKeys[0] = mainForm.GetGlobalKey(4);
             this.skypeKeys[1] = mainForm.GetGlobalKey(5);
             this.skypeSoundboard = mainForm.SkypeSoundboard;
+            this.sourceSoundboard = mainForm.SourceSoundboard;
             this.subscribedServers = new List<DiscordServer>();
             this.discordSoundboard = mainForm.DiscordSoundboard;
             this.fullscreenCheckBox.Checked = skypeSoundboard.CheckFullscreen;
@@ -82,6 +90,13 @@ namespace HiT.VoIPSoundboard
                     volumeDuckingBox.Checked = value == null || (int)value != 3;
                 }
             }
+            for (int currBankIndex = 0; currBankIndex < sourceSoundboard.TTSBanksCount; currBankIndex++)
+            {
+                this.ttsBanksBox.Items.Add(sourceSoundboard.GetTTSBank(currBankIndex).BankName);
+                this.selectedVoicesBanks.Add(0);
+            }
+            this.selectedVoicesBanks[sourceSoundboard.SelectedBankIndex] = sourceSoundboard.SelectedVoiceIndex;
+            this.ttsBanksBox.SelectedIndex = sourceSoundboard.SelectedBankIndex;
             RefreshMicrophoneDevices();
             this.startup = true;
         }
@@ -155,6 +170,46 @@ namespace HiT.VoIPSoundboard
                     }
                 }
             }
+        }
+        private void ttsBanksBox_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+        private void ttsBanksBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            TTSBankData selectedTTSBank = sourceSoundboard.GetTTSBank(ttsBanksBox.SelectedIndex);
+            ttsVoicesBox.Items.Clear();
+            for (int currVoiceIndex = 0; currVoiceIndex < selectedTTSBank.VoicesCount; currVoiceIndex++)
+            {
+                ttsVoicesBox.Items.Add(selectedTTSBank.GetVoice(currVoiceIndex));
+            }
+            ttsVoicesBox.SelectedIndex = selectedVoicesBanks[ttsBanksBox.SelectedIndex];
+            sourceSoundboard.SelectedBankIndex = ttsBanksBox.SelectedIndex;
+        }
+        private void ttsVoicesBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            selectedVoicesBanks[ttsBanksBox.SelectedIndex] = ttsVoicesBox.SelectedIndex;
+            sourceSoundboard.SelectedVoiceIndex = ttsVoicesBox.SelectedIndex;
+        }
+        private void demoTTSButton_Click(object sender, EventArgs e)
+        {
+            MemoryStream ttsMP3Stream = sourceSoundboard.RequestTTSFile("Hello my name is " + ttsVoicesBox.SelectedItem.ToString() + " and this is how my voice sounds");
+            if (ttsMP3Stream != null)
+            {
+                SoundPlayer soundPlayer = new SoundPlayer(TTSTMP_PATH);
+                using (Mp3FileReader mp3FileReader = new Mp3FileReader(ttsMP3Stream))
+                {
+                    using (WaveStream waveStream = new WaveFormatConversionStream(new WaveFormat(22050, 16, 1), mp3FileReader))
+                    {
+                        WaveFileWriter.CreateWaveFile(TTSTMP_PATH, waveStream);
+                    }
+                }
+                soundPlayer.Play();
+            }
+        }
+        private void acapelaGroupLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            Process.Start("http://www.acapela-group.com");
         }
         private void showPasswordBox_CheckedChanged(object sender, EventArgs e)
         {

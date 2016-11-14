@@ -49,7 +49,6 @@ namespace HiT.VoIPSoundboard
             this.playerTimer = new Stopwatch();
             this.soundGroups = new List<string>();
             this.globalHotkeys = new Keys[GLOBAL_HOTKEYS];
-            this.sourceSoundboard = new SourceSoundboard(this);
             this.sounds = new Dictionary<string, List<SoundData>>();
             if (!Directory.Exists("soundboard\\"))
             {
@@ -70,6 +69,7 @@ namespace HiT.VoIPSoundboard
                     checkFullScreen = registryValue != null && (int)registryValue == 1;
                     registryValue = appRegistryKey.GetValue("FullScreenStatus");
                     this.skypeSoundboard = new SkypeSoundboard(trayIcon, checkFullScreen, registryValue != null ? (TUserStatus)registryValue : TUserStatus.cusDoNotDisturb);
+                    this.sourceSoundboard = new SourceSoundboard(this, appRegistryKey);
                     this.discordSoundboard = new DiscordSoundboard(appRegistryKey);
                     registryValue = appRegistryKey.GetValue("SoundboardMode");
                     if (registryValue != null)
@@ -134,6 +134,7 @@ namespace HiT.VoIPSoundboard
                 else
                 {
                     this.skypeSoundboard = new SkypeSoundboard(trayIcon);
+                    this.sourceSoundboard = new SourceSoundboard(this);
                     this.discordSoundboard = new DiscordSoundboard();
                     this.discordMenuItem.PerformClick();
                 }
@@ -853,6 +854,7 @@ namespace HiT.VoIPSoundboard
             appRegistryKey.SetValue("MuteMicrophoneKey", globalHotkeys[4], RegistryValueKind.DWord);
             appRegistryKey.SetValue("DeafenSkypeKey", globalHotkeys[5], RegistryValueKind.DWord);
             appRegistryKey.SetValue("StopSoundKey", globalHotkeys[GLOBAL_HOTKEYS - 1], RegistryValueKind.DWord);
+            appRegistryKey.SetValue("TTSVoiceName", sourceSoundboard.SelectedTTSVoice, RegistryValueKind.String);
             if (discordSoundboard.HasLogin)
             {
                 discordSoundboard.SaveSettings(appRegistryKey);

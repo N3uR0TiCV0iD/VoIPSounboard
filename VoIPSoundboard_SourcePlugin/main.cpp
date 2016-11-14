@@ -9,6 +9,9 @@
 #define ENGINEUPDATEMSG_PATTERN "\x8B\x5D\x0C\x03\x5D\x14\x56\x8B\xF1\x57\x83\xFB\x0C" //Starts @ mov ebx, [ebp+0C]
 #define ENGINEUPDATEMSG_MASK "1111111111111"
 #define ENGINEUPDATEMSG_REPLACINGBYTES 6
+#define SHOWHIDECHATBOX_PATTERN "\x33\xC0\x84\xD2\x51\x0F\x95\xC0" //Starts @ xor eax, eax
+#define SHOWHIDECHATBOX_MASK "11111111"
+#define SHOWHIDECHATBOX_REPLACINGBYTES 5
 
 #if _DEBUG
 	#define DEBUGMSG(message, ...) printf(message, __VA_ARGS__)
@@ -18,9 +21,11 @@
 
 typedef struct sockaddr_in sockaddr_in;
 
+int chatBoxOpen;
 SOCKET clientSocket;
 bool clientConnected;
 DWORD engineUpdateMsgReturnAddress;
+DWORD showHideChatBoxReturnAddress;
 _declspec(naked) void EngineUpdateMessage_Detour(const char *data1, int data1Length, const char *data2, int data2Length) //Not sure if that is what the function is for... But hey it suits the purpose :D
 {
 	__asm
@@ -36,7 +41,7 @@ _declspec(naked) void EngineUpdateMessage_Detour(const char *data1, int data1Len
 			data2Length & 0xFF,
 			(data2Length >> 8) & 0xFF,
 			(data2Length >> 16) & 0xFF,
-			(data2Length >> 24) & 0xFF,
+			data2Length >> 24,
 		};
 		DEBUGMSG("Looks like I should TTS: <%s>\n", data2);
 		send(clientSocket, lengthBuffer, sizeof(int), 0);
@@ -49,6 +54,33 @@ _declspec(naked) void EngineUpdateMessage_Detour(const char *data1, int data1Len
 		mov ebx, [ebp + 0x0C];		//]
 		add ebx, [ebp + 0x14];		//]--- Original instructions before detour
 		jmp engineUpdateMsgReturnAddress;  //Jump back to the rest of the normal EngineUpdateMessage
+	}
+}
+_declspec(naked) void ShowHideChatBox_Detour()
+{
+	__asm
+	{
+		mov chatBoxOpen, edx; //Let's store the value of edx (which happens to contain whether the chatbox is open)
+	}
+	#if _DEBUG
+		__asm
+		{
+			pushad; //Push all general purpose registers
+			pushfd; //Push all general purpose registers
+		}
+		DEBUGMSG("Detour got called! | chatBoxOpen = %i\n", chatBoxOpen);
+		__asm
+		{
+			popfd; //Pop all CPU flags
+			popad; //Pop all general purpose registers
+		}
+	#endif
+	__asm
+	{
+		xor eax, eax;		//]
+		test dl, dl;		//|--- Original instructions before detour
+		push ecx;			//]
+		jmp showHideChatBoxReturnAddress; //Jump back to the rest of the normal ShowHideChatBox
 	}
 }
 void InitPlugin()
@@ -64,14 +96,20 @@ void InitPlugin()
 		DWORD scaleFormDLL = (DWORD)GetModuleHandleA("scaleformui.dll");
 		DWORD scaleFormDLLSize = GetModuleSize((HMODULE)scaleFormDLL);
 		DWORD engineUpdateMsgHookAddress = FindPattern(scaleFormDLL, scaleFormDLLSize, ENGINEUPDATEMSG_PATTERN, ENGINEUPDATEMSG_MASK);
-		DEBUGMSG("Found ClientCMD method @ 0x%08x (Offset: +0x%08x)\n", &ClientCMD, &ClientCMD - engineDLL);
+		DEBUGMSG("Found ClientCMD method @ 0x%08x\n", &ClientCMD);
 		DEBUGMSG("scaleFormDLL Module @ 0x%08x\n", scaleFormDLL);
 		DEBUGMSG("scaleFormDLLSize: %i\n", scaleFormDLLSize);
 		engineUpdateMsgReturnAddress = engineUpdateMsgHookAddress + ENGINEUPDATEMSG_REPLACINGBYTES;
 		if (engineUpdateMsgHookAddress != NULL && DetourMethod((void*)engineUpdateMsgHookAddress, &EngineUpdateMessage_Detour, ENGINEUPDATEMSG_REPLACINGBYTES))
 		{
+			DWORD showHideChatBoxHookAddress = FindPattern(scaleFormDLL, scaleFormDLLSize, SHOWHIDECHATBOX_PATTERN, SHOWHIDECHATBOX_MASK);
 			DEBUGMSG("Successfully hooked EngineUpdateMessage @ 0x%08x\n", engineUpdateMsgHookAddress);
-			PluginService(ClientCMD);
+			showHideChatBoxReturnAddress = showHideChatBoxHookAddress + SHOWHIDECHATBOX_REPLACINGBYTES;
+			if (showHideChatBoxHookAddress != NULL && DetourMethod((void*)showHideChatBoxHookAddress, &ShowHideChatBox_Detour, SHOWHIDECHATBOX_REPLACINGBYTES))
+			{
+				DEBUGMSG("Successfully hooked ShowHideChatBox @ 0x%08x\n", showHideChatBoxHookAddress);
+				PluginService(ClientCMD);
+			}
 		}
 		else
 		{
@@ -148,8 +186,8 @@ void PluginService(ClientCMDProc ClientCMD)
 		serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
 		if (bind(serverSocket, (sockaddr*)&serverAddress, sizeof(serverAddress)) != SOCKET_ERROR)
 		{
-			sockaddr_in clientAddress;
 			int clientAddressSize = sizeof(sockaddr_in);
+			sockaddr_in clientAddress;
 			DEBUGMSG("Bind done.\n");
 			listen(serverSocket, 3);
 			while (TRUE)
@@ -159,22 +197,28 @@ void PluginService(ClientCMDProc ClientCMD)
 				DEBUGMSG("Client connected.\n");
 				if (clientSocket != INVALID_SOCKET)
 				{
-					char buffer[1];
+					char receivedMessage;
 					int receivedBytes = 1;
 					clientConnected = true;
 					while (receivedBytes > 0)
 					{
-						receivedBytes = recv(clientSocket, buffer, sizeof(buffer), 0);
-						DEBUGMSG("Received: %i\n", buffer[0]);
-						switch (buffer[0])
+						receivedBytes = recv(clientSocket, &receivedMessage, 1, 0);
+						DEBUGMSG("Received: %i\n", receivedMessage);
+						switch (receivedMessage)
 						{
 							case PLUGINMESSAGE_PLAYSOUND:
-								DEBUGMSG("Playing sound\n");
-								ClientCMD("voice_inputfromfile 1; +voicerecord; voice_loopback 1");
+								if (!chatBoxOpen)
+								{
+									DEBUGMSG("Playing sound\n");
+									ClientCMD("voice_inputfromfile 1; +voicerecord; voice_loopback 1");
+								}
 							break;
 							case PLUGINMESSAGE_STOPPLAYING:
-								DEBUGMSG("Stopping sound\n");
-								ClientCMD("-voicerecord; voice_inputfromfile 0; voice_loopback 0");
+								if (!chatBoxOpen)
+								{
+									DEBUGMSG("Stopping sound\n");
+									ClientCMD("-voicerecord; voice_inputfromfile 0; voice_loopback 0");
+								}
 							break;
 							case PLUGINMESSAGE_STARTRECORDING:
 								//...

@@ -61,14 +61,21 @@
             this.saveMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copycatMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.driverSettingsBox = new System.Windows.Forms.GroupBox();
+            this.acapelaGroupLink = new System.Windows.Forms.LinkLabel();
+            this.ttsVoicesBox = new System.Windows.Forms.ComboBox();
+            this.ttsVoiceLabel = new System.Windows.Forms.Label();
+            this.ttsBanksBox = new System.Windows.Forms.ComboBox();
+            this.ttsBankLabel = new System.Windows.Forms.Label();
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
+            this.microphonePeakBar = new HiT.VoIPSoundboard.FlatProgressBar();
+            this.demoTTSButton = new System.Windows.Forms.Button();
             this.selectedServerLogoBox = new System.Windows.Forms.PictureBox();
             this.selectedUserAvatarBox = new System.Windows.Forms.PictureBox();
-            this.microphonePeakBar = new HiT.VoIPSoundboard.FlatProgressBar();
             this.skypeSettingsBox.SuspendLayout();
             this.discordSettingsBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).BeginInit();
             this.pictureBoxContextMenu.SuspendLayout();
+            this.driverSettingsBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.selectedServerLogoBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.selectedUserAvatarBox)).BeginInit();
             this.SuspendLayout();
@@ -402,12 +409,89 @@
             // 
             // driverSettingsBox
             // 
+            this.driverSettingsBox.Controls.Add(this.demoTTSButton);
+            this.driverSettingsBox.Controls.Add(this.acapelaGroupLink);
+            this.driverSettingsBox.Controls.Add(this.ttsVoicesBox);
+            this.driverSettingsBox.Controls.Add(this.ttsVoiceLabel);
+            this.driverSettingsBox.Controls.Add(this.ttsBanksBox);
+            this.driverSettingsBox.Controls.Add(this.ttsBankLabel);
             this.driverSettingsBox.Location = new System.Drawing.Point(235, 10);
             this.driverSettingsBox.Name = "driverSettingsBox";
             this.driverSettingsBox.Size = new System.Drawing.Size(195, 120);
             this.driverSettingsBox.TabIndex = 1;
             this.driverSettingsBox.TabStop = false;
-            this.driverSettingsBox.Text = "Driver Settings";
+            this.driverSettingsBox.Text = "Other Settings";
+            // 
+            // acapelaGroupLink
+            // 
+            this.acapelaGroupLink.AutoSize = true;
+            this.acapelaGroupLink.Location = new System.Drawing.Point(35, 71);
+            this.acapelaGroupLink.Name = "acapelaGroupLink";
+            this.acapelaGroupLink.Size = new System.Drawing.Size(156, 13);
+            this.acapelaGroupLink.TabIndex = 5;
+            this.acapelaGroupLink.TabStop = true;
+            this.acapelaGroupLink.Text = "http://www.acapela-group.com";
+            this.acapelaGroupLink.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.acapelaGroupLink_LinkClicked);
+            // 
+            // ttsVoicesBox
+            // 
+            this.ttsVoicesBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.ttsVoicesBox.FormattingEnabled = true;
+            this.ttsVoicesBox.Location = new System.Drawing.Point(70, 45);
+            this.ttsVoicesBox.Name = "ttsVoicesBox";
+            this.ttsVoicesBox.Size = new System.Drawing.Size(115, 21);
+            this.ttsVoicesBox.TabIndex = 3;
+            this.ttsVoicesBox.SelectedIndexChanged += new System.EventHandler(this.ttsVoicesBox_SelectedIndexChanged);
+            // 
+            // ttsVoiceLabel
+            // 
+            this.ttsVoiceLabel.AutoSize = true;
+            this.ttsVoiceLabel.Location = new System.Drawing.Point(7, 48);
+            this.ttsVoiceLabel.Name = "ttsVoiceLabel";
+            this.ttsVoiceLabel.Size = new System.Drawing.Size(61, 13);
+            this.ttsVoiceLabel.TabIndex = 2;
+            this.ttsVoiceLabel.Text = "TTS Voice:";
+            // 
+            // ttsBanksBox
+            // 
+            this.ttsBanksBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.ttsBanksBox.FormattingEnabled = true;
+            this.ttsBanksBox.Location = new System.Drawing.Point(70, 18);
+            this.ttsBanksBox.Name = "ttsBanksBox";
+            this.ttsBanksBox.Size = new System.Drawing.Size(115, 21);
+            this.ttsBanksBox.TabIndex = 0;
+            this.ttsBanksBox.SelectedIndexChanged += new System.EventHandler(this.ttsBanksBox_SelectedIndexChanged);
+            // 
+            // ttsBankLabel
+            // 
+            this.ttsBankLabel.AutoSize = true;
+            this.ttsBankLabel.Location = new System.Drawing.Point(7, 21);
+            this.ttsBankLabel.Name = "ttsBankLabel";
+            this.ttsBankLabel.Size = new System.Drawing.Size(59, 13);
+            this.ttsBankLabel.TabIndex = 1;
+            this.ttsBankLabel.Text = "TTS Bank:";
+            // 
+            // microphonePeakBar
+            // 
+            this.microphonePeakBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(0)))));
+            this.microphonePeakBar.Enabled = false;
+            this.microphonePeakBar.Location = new System.Drawing.Point(215, 45);
+            this.microphonePeakBar.Maximum = 100;
+            this.microphonePeakBar.Minimum = 0;
+            this.microphonePeakBar.Name = "microphonePeakBar";
+            this.microphonePeakBar.Size = new System.Drawing.Size(112, 20);
+            this.microphonePeakBar.TabIndex = 10;
+            this.microphonePeakBar.Value = 0;
+            // 
+            // demoTTSButton
+            // 
+            this.demoTTSButton.Image = global::HiT.VoIPSoundboard.Properties.Resources.ListenTTSIcon;
+            this.demoTTSButton.Location = new System.Drawing.Point(10, 65);
+            this.demoTTSButton.Name = "demoTTSButton";
+            this.demoTTSButton.Size = new System.Drawing.Size(24, 24);
+            this.demoTTSButton.TabIndex = 6;
+            this.demoTTSButton.UseVisualStyleBackColor = true;
+            this.demoTTSButton.Click += new System.EventHandler(this.demoTTSButton_Click);
             // 
             // selectedServerLogoBox
             // 
@@ -431,18 +515,6 @@
             this.selectedUserAvatarBox.TabStop = false;
             this.selectedUserAvatarBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedUserAvatarBox_MouseClick);
             // 
-            // microphonePeakBar
-            // 
-            this.microphonePeakBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(0)))));
-            this.microphonePeakBar.Enabled = false;
-            this.microphonePeakBar.Location = new System.Drawing.Point(215, 45);
-            this.microphonePeakBar.Maximum = 100;
-            this.microphonePeakBar.Minimum = 0;
-            this.microphonePeakBar.Name = "microphonePeakBar";
-            this.microphonePeakBar.Size = new System.Drawing.Size(112, 20);
-            this.microphonePeakBar.TabIndex = 10;
-            this.microphonePeakBar.Value = 0;
-            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -465,6 +537,8 @@
             this.discordSettingsBox.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).EndInit();
             this.pictureBoxContextMenu.ResumeLayout(false);
+            this.driverSettingsBox.ResumeLayout(false);
+            this.driverSettingsBox.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.selectedServerLogoBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.selectedUserAvatarBox)).EndInit();
             this.ResumeLayout(false);
@@ -508,5 +582,11 @@
         private System.Windows.Forms.Label peakPercentageLabel;
         private System.Windows.Forms.CheckBox speakMutedNotifyBox;
         private FlatProgressBar microphonePeakBar;
+        private System.Windows.Forms.ComboBox ttsVoicesBox;
+        private System.Windows.Forms.Label ttsVoiceLabel;
+        private System.Windows.Forms.ComboBox ttsBanksBox;
+        private System.Windows.Forms.Label ttsBankLabel;
+        private System.Windows.Forms.LinkLabel acapelaGroupLink;
+        private System.Windows.Forms.Button demoTTSButton;
     }
 }
