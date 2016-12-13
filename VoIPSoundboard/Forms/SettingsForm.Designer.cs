@@ -39,14 +39,17 @@
             this.fullscreenStatusBox = new System.Windows.Forms.ComboBox();
             this.fullscreenCheckBox = new System.Windows.Forms.CheckBox();
             this.discordSettingsBox = new System.Windows.Forms.GroupBox();
+            this.microphonePeakBar = new HiT.VoIPSoundboard.FlatProgressBar();
             this.peakPercentageLabel = new System.Windows.Forms.Label();
             this.microphonesBox = new System.Windows.Forms.ComboBox();
             this.micSourceLabel = new System.Windows.Forms.Label();
             this.inviteBox = new System.Windows.Forms.TextBox();
             this.acceptInviteButton = new System.Windows.Forms.Button();
             this.inviteLabel = new System.Windows.Forms.Label();
+            this.selectedServerLogoBox = new System.Windows.Forms.PictureBox();
             this.serversBox = new System.Windows.Forms.ListBox();
             this.leaveServerButton = new System.Windows.Forms.Button();
+            this.selectedUserAvatarBox = new System.Windows.Forms.PictureBox();
             this.followButton = new System.Windows.Forms.Button();
             this.fetchedUsersBox = new System.Windows.Forms.ListBox();
             this.fetchUsersButton = new System.Windows.Forms.Button();
@@ -60,24 +63,23 @@
             this.pictureBoxContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.saveMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.copycatMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.driverSettingsBox = new System.Windows.Forms.GroupBox();
-            this.acapelaGroupLink = new System.Windows.Forms.LinkLabel();
+            this.ttsSettingsBox = new System.Windows.Forms.GroupBox();
+            this.demoTTSButton = new System.Windows.Forms.Button();
+            this.voiceRSSLink = new System.Windows.Forms.LinkLabel();
             this.ttsVoicesBox = new System.Windows.Forms.ComboBox();
             this.ttsVoiceLabel = new System.Windows.Forms.Label();
             this.ttsBanksBox = new System.Windows.Forms.ComboBox();
             this.ttsBankLabel = new System.Windows.Forms.Label();
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
-            this.microphonePeakBar = new HiT.VoIPSoundboard.FlatProgressBar();
-            this.demoTTSButton = new System.Windows.Forms.Button();
-            this.selectedServerLogoBox = new System.Windows.Forms.PictureBox();
-            this.selectedUserAvatarBox = new System.Windows.Forms.PictureBox();
+            this.enableTTSHKButton = new System.Windows.Forms.Button();
+            this.enableTTSHKLabel = new System.Windows.Forms.Label();
             this.skypeSettingsBox.SuspendLayout();
             this.discordSettingsBox.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).BeginInit();
-            this.pictureBoxContextMenu.SuspendLayout();
-            this.driverSettingsBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.selectedServerLogoBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.selectedUserAvatarBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).BeginInit();
+            this.pictureBoxContextMenu.SuspendLayout();
+            this.ttsSettingsBox.SuspendLayout();
             this.SuspendLayout();
             // 
             // deafenHKButton
@@ -205,6 +207,18 @@
             this.discordSettingsBox.TabStop = false;
             this.discordSettingsBox.Text = "Discord Settings";
             // 
+            // microphonePeakBar
+            // 
+            this.microphonePeakBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(0)))));
+            this.microphonePeakBar.Enabled = false;
+            this.microphonePeakBar.Location = new System.Drawing.Point(215, 45);
+            this.microphonePeakBar.Maximum = 100;
+            this.microphonePeakBar.Minimum = 0;
+            this.microphonePeakBar.Name = "microphonePeakBar";
+            this.microphonePeakBar.Size = new System.Drawing.Size(112, 20);
+            this.microphonePeakBar.TabIndex = 10;
+            this.microphonePeakBar.Value = 0;
+            // 
             // peakPercentageLabel
             // 
             this.peakPercentageLabel.AutoSize = true;
@@ -267,6 +281,17 @@
             this.inviteLabel.TabIndex = 14;
             this.inviteLabel.Text = "Invite:";
             // 
+            // selectedServerLogoBox
+            // 
+            this.selectedServerLogoBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.selectedServerLogoBox.Location = new System.Drawing.Point(347, 135);
+            this.selectedServerLogoBox.Name = "selectedServerLogoBox";
+            this.selectedServerLogoBox.Size = new System.Drawing.Size(64, 64);
+            this.selectedServerLogoBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.selectedServerLogoBox.TabIndex = 12;
+            this.selectedServerLogoBox.TabStop = false;
+            this.selectedServerLogoBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedServerLogoBox_MouseClick);
+            // 
             // serversBox
             // 
             this.serversBox.FormattingEnabled = true;
@@ -286,6 +311,17 @@
             this.leaveServerButton.Text = "Leave";
             this.leaveServerButton.UseVisualStyleBackColor = true;
             this.leaveServerButton.Click += new System.EventHandler(this.leaveServerButton_Click);
+            // 
+            // selectedUserAvatarBox
+            // 
+            this.selectedUserAvatarBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.selectedUserAvatarBox.Location = new System.Drawing.Point(142, 134);
+            this.selectedUserAvatarBox.Name = "selectedUserAvatarBox";
+            this.selectedUserAvatarBox.Size = new System.Drawing.Size(64, 64);
+            this.selectedUserAvatarBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.selectedUserAvatarBox.TabIndex = 9;
+            this.selectedUserAvatarBox.TabStop = false;
+            this.selectedUserAvatarBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedUserAvatarBox_MouseClick);
             // 
             // followButton
             // 
@@ -407,31 +443,43 @@
             this.copycatMenuItem.Text = "Copycat";
             this.copycatMenuItem.Click += new System.EventHandler(this.copycatMenuItem_Click);
             // 
-            // driverSettingsBox
+            // ttsSettingsBox
             // 
-            this.driverSettingsBox.Controls.Add(this.demoTTSButton);
-            this.driverSettingsBox.Controls.Add(this.acapelaGroupLink);
-            this.driverSettingsBox.Controls.Add(this.ttsVoicesBox);
-            this.driverSettingsBox.Controls.Add(this.ttsVoiceLabel);
-            this.driverSettingsBox.Controls.Add(this.ttsBanksBox);
-            this.driverSettingsBox.Controls.Add(this.ttsBankLabel);
-            this.driverSettingsBox.Location = new System.Drawing.Point(235, 10);
-            this.driverSettingsBox.Name = "driverSettingsBox";
-            this.driverSettingsBox.Size = new System.Drawing.Size(195, 120);
-            this.driverSettingsBox.TabIndex = 1;
-            this.driverSettingsBox.TabStop = false;
-            this.driverSettingsBox.Text = "Other Settings";
+            this.ttsSettingsBox.Controls.Add(this.enableTTSHKButton);
+            this.ttsSettingsBox.Controls.Add(this.demoTTSButton);
+            this.ttsSettingsBox.Controls.Add(this.enableTTSHKLabel);
+            this.ttsSettingsBox.Controls.Add(this.voiceRSSLink);
+            this.ttsSettingsBox.Controls.Add(this.ttsVoicesBox);
+            this.ttsSettingsBox.Controls.Add(this.ttsVoiceLabel);
+            this.ttsSettingsBox.Controls.Add(this.ttsBanksBox);
+            this.ttsSettingsBox.Controls.Add(this.ttsBankLabel);
+            this.ttsSettingsBox.Location = new System.Drawing.Point(235, 10);
+            this.ttsSettingsBox.Name = "ttsSettingsBox";
+            this.ttsSettingsBox.Size = new System.Drawing.Size(195, 120);
+            this.ttsSettingsBox.TabIndex = 1;
+            this.ttsSettingsBox.TabStop = false;
+            this.ttsSettingsBox.Text = "TTS Settings";
             // 
-            // acapelaGroupLink
+            // demoTTSButton
             // 
-            this.acapelaGroupLink.AutoSize = true;
-            this.acapelaGroupLink.Location = new System.Drawing.Point(35, 71);
-            this.acapelaGroupLink.Name = "acapelaGroupLink";
-            this.acapelaGroupLink.Size = new System.Drawing.Size(156, 13);
-            this.acapelaGroupLink.TabIndex = 5;
-            this.acapelaGroupLink.TabStop = true;
-            this.acapelaGroupLink.Text = "http://www.acapela-group.com";
-            this.acapelaGroupLink.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.acapelaGroupLink_LinkClicked);
+            this.demoTTSButton.Image = global::HiT.VoIPSoundboard.Properties.Resources.ListenTTSIcon;
+            this.demoTTSButton.Location = new System.Drawing.Point(10, 65);
+            this.demoTTSButton.Name = "demoTTSButton";
+            this.demoTTSButton.Size = new System.Drawing.Size(24, 24);
+            this.demoTTSButton.TabIndex = 4;
+            this.demoTTSButton.UseVisualStyleBackColor = true;
+            this.demoTTSButton.Click += new System.EventHandler(this.demoTTSButton_Click);
+            // 
+            // voiceRSSLink
+            // 
+            this.voiceRSSLink.AutoSize = true;
+            this.voiceRSSLink.Location = new System.Drawing.Point(64, 71);
+            this.voiceRSSLink.Name = "voiceRSSLink";
+            this.voiceRSSLink.Size = new System.Drawing.Size(122, 13);
+            this.voiceRSSLink.TabIndex = 5;
+            this.voiceRSSLink.TabStop = true;
+            this.voiceRSSLink.Text = "http://www.voicerss.org";
+            this.voiceRSSLink.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.voiceRSSLink_LinkClicked);
             // 
             // ttsVoicesBox
             // 
@@ -459,7 +507,7 @@
             this.ttsBanksBox.Location = new System.Drawing.Point(70, 18);
             this.ttsBanksBox.Name = "ttsBanksBox";
             this.ttsBanksBox.Size = new System.Drawing.Size(115, 21);
-            this.ttsBanksBox.TabIndex = 0;
+            this.ttsBanksBox.TabIndex = 1;
             this.ttsBanksBox.SelectedIndexChanged += new System.EventHandler(this.ttsBanksBox_SelectedIndexChanged);
             // 
             // ttsBankLabel
@@ -468,59 +516,36 @@
             this.ttsBankLabel.Location = new System.Drawing.Point(7, 21);
             this.ttsBankLabel.Name = "ttsBankLabel";
             this.ttsBankLabel.Size = new System.Drawing.Size(59, 13);
-            this.ttsBankLabel.TabIndex = 1;
+            this.ttsBankLabel.TabIndex = 0;
             this.ttsBankLabel.Text = "TTS Bank:";
             // 
-            // microphonePeakBar
+            // enableTTSHKButton
             // 
-            this.microphonePeakBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(0)))));
-            this.microphonePeakBar.Enabled = false;
-            this.microphonePeakBar.Location = new System.Drawing.Point(215, 45);
-            this.microphonePeakBar.Maximum = 100;
-            this.microphonePeakBar.Minimum = 0;
-            this.microphonePeakBar.Name = "microphonePeakBar";
-            this.microphonePeakBar.Size = new System.Drawing.Size(112, 20);
-            this.microphonePeakBar.TabIndex = 10;
-            this.microphonePeakBar.Value = 0;
+            this.enableTTSHKButton.Location = new System.Drawing.Point(120, 93);
+            this.enableTTSHKButton.Name = "enableTTSHKButton";
+            this.enableTTSHKButton.Size = new System.Drawing.Size(70, 20);
+            this.enableTTSHKButton.TabIndex = 7;
+            this.enableTTSHKButton.Text = "None";
+            this.enableTTSHKButton.UseVisualStyleBackColor = true;
+            this.enableTTSHKButton.Click += new System.EventHandler(this.HotkeyButton_Click);
+            this.enableTTSHKButton.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GlobaHotkeyButton_KeyDown);
             // 
-            // demoTTSButton
+            // enableTTSHKLabel
             // 
-            this.demoTTSButton.Image = global::HiT.VoIPSoundboard.Properties.Resources.ListenTTSIcon;
-            this.demoTTSButton.Location = new System.Drawing.Point(10, 65);
-            this.demoTTSButton.Name = "demoTTSButton";
-            this.demoTTSButton.Size = new System.Drawing.Size(24, 24);
-            this.demoTTSButton.TabIndex = 6;
-            this.demoTTSButton.UseVisualStyleBackColor = true;
-            this.demoTTSButton.Click += new System.EventHandler(this.demoTTSButton_Click);
-            // 
-            // selectedServerLogoBox
-            // 
-            this.selectedServerLogoBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.selectedServerLogoBox.Location = new System.Drawing.Point(347, 135);
-            this.selectedServerLogoBox.Name = "selectedServerLogoBox";
-            this.selectedServerLogoBox.Size = new System.Drawing.Size(64, 64);
-            this.selectedServerLogoBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.selectedServerLogoBox.TabIndex = 12;
-            this.selectedServerLogoBox.TabStop = false;
-            this.selectedServerLogoBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedServerLogoBox_MouseClick);
-            // 
-            // selectedUserAvatarBox
-            // 
-            this.selectedUserAvatarBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.selectedUserAvatarBox.Location = new System.Drawing.Point(142, 134);
-            this.selectedUserAvatarBox.Name = "selectedUserAvatarBox";
-            this.selectedUserAvatarBox.Size = new System.Drawing.Size(64, 64);
-            this.selectedUserAvatarBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.selectedUserAvatarBox.TabIndex = 9;
-            this.selectedUserAvatarBox.TabStop = false;
-            this.selectedUserAvatarBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.selectedUserAvatarBox_MouseClick);
+            this.enableTTSHKLabel.AutoSize = true;
+            this.enableTTSHKLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.enableTTSHKLabel.Location = new System.Drawing.Point(5, 96);
+            this.enableTTSHKLabel.Name = "enableTTSHKLabel";
+            this.enableTTSHKLabel.Size = new System.Drawing.Size(118, 13);
+            this.enableTTSHKLabel.TabIndex = 6;
+            this.enableTTSHKLabel.Text = "EnableTTS Hotkey:";
             // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(439, 392);
-            this.Controls.Add(this.driverSettingsBox);
+            this.Controls.Add(this.ttsSettingsBox);
             this.Controls.Add(this.discordSettingsBox);
             this.Controls.Add(this.skypeSettingsBox);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -535,12 +560,12 @@
             this.skypeSettingsBox.PerformLayout();
             this.discordSettingsBox.ResumeLayout(false);
             this.discordSettingsBox.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).EndInit();
-            this.pictureBoxContextMenu.ResumeLayout(false);
-            this.driverSettingsBox.ResumeLayout(false);
-            this.driverSettingsBox.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.selectedServerLogoBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.selectedUserAvatarBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.peakNotificationTrackBar)).EndInit();
+            this.pictureBoxContextMenu.ResumeLayout(false);
+            this.ttsSettingsBox.ResumeLayout(false);
+            this.ttsSettingsBox.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -574,7 +599,7 @@
         private System.Windows.Forms.ListBox serversBox;
         private System.Windows.Forms.Button leaveServerButton;
         private System.Windows.Forms.ComboBox microphonesBox;
-        private System.Windows.Forms.GroupBox driverSettingsBox;
+        private System.Windows.Forms.GroupBox ttsSettingsBox;
         private System.Windows.Forms.ToolTip toolTip;
         private System.Windows.Forms.Label micSourceLabel;
         private System.Windows.Forms.TrackBar peakNotificationTrackBar;
@@ -586,7 +611,9 @@
         private System.Windows.Forms.Label ttsVoiceLabel;
         private System.Windows.Forms.ComboBox ttsBanksBox;
         private System.Windows.Forms.Label ttsBankLabel;
-        private System.Windows.Forms.LinkLabel acapelaGroupLink;
+        private System.Windows.Forms.LinkLabel voiceRSSLink;
         private System.Windows.Forms.Button demoTTSButton;
+        private System.Windows.Forms.Button enableTTSHKButton;
+        private System.Windows.Forms.Label enableTTSHKLabel;
     }
 }

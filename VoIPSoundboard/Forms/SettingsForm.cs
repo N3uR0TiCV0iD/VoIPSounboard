@@ -22,7 +22,7 @@ namespace HiT.VoIPSoundboard
         static readonly string TTSTMP_PATH = Path.GetTempPath() + "tts_tmp.wav";
         bool closed;
         bool startup;
-        Keys[] skypeKeys;
+        Keys[] newKeys;
         bool updateHotkey;
         bool savingAvatar;
         string iconPrefixName;
@@ -37,11 +37,12 @@ namespace HiT.VoIPSoundboard
         {
             this.startup = true;
             InitializeComponent();
-            this.skypeKeys = new Keys[2];
+            this.newKeys = new Keys[3];
             this.selectedVoicesBanks = new List<int>();
             this.fetchedUsers = new List<DiscordUser>();
-            this.skypeKeys[0] = mainForm.GetGlobalKey(4);
-            this.skypeKeys[1] = mainForm.GetGlobalKey(5);
+            this.newKeys[0] = mainForm.GetGlobalKey(4);
+            this.newKeys[1] = mainForm.GetGlobalKey(5);
+            this.newKeys[2] = mainForm.GetGlobalKey(6);
             this.skypeSoundboard = mainForm.SkypeSoundboard;
             this.sourceSoundboard = mainForm.SourceSoundboard;
             this.subscribedServers = new List<DiscordServer>();
@@ -50,7 +51,7 @@ namespace HiT.VoIPSoundboard
             this.microphonePeakThread = new Thread(() => UpdateMicrophonePeakService());
             this.speakMutedNotifyBox.Checked = this.discordSoundboard.NotifyMutedTalking;
             this.peakNotificationTrackBar.Value = (int)Math.Round(this.discordSoundboard.MutedPeakLevel * this.peakNotificationTrackBar.Maximum);
-            this.toolTip.SetToolTip(volumeDuckingBox, "If checked, it will allow Skype reduce the volume of background applications.");
+            this.toolTip.SetToolTip(volumeDuckingBox, "If checked, it will allow Skype to reduce the volume of background applications.");
             this.toolTip.SetToolTip(fullscreenCheckBox, "If checked, it will set your Skype status to the selected one while you have a fullscreen application running.");
             this.toolTip.SetToolTip(speakMutedNotifyBox, "If checked, it will play a sound to tell you that you are trying to talk while muted.\nThe volume limit at which the sound will play can be set on the left.");
             switch (skypeSoundboard.FullscreenStatus)
@@ -78,8 +79,9 @@ namespace HiT.VoIPSoundboard
                     inviteBox.Enabled = true;
                 break;
             }
-            this.muteMicHKButton.Text = this.skypeKeys[0].ToString();
-            this.deafenHKButton.Text = this.skypeKeys[1].ToString();
+            this.enableTTSHKButton.Text = this.newKeys[2].ToString();
+            this.muteMicHKButton.Text = this.newKeys[0].ToString();
+            this.deafenHKButton.Text = this.newKeys[1].ToString();
             this.passwordBox.Text = discordSoundboard.Password;
             this.emailBox.Text = discordSoundboard.Email;
             using (RegistryKey audioPrefsKey = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Multimedia\\Audio"))
@@ -104,11 +106,11 @@ namespace HiT.VoIPSoundboard
         {
             this.microphonePeakThread.Start();
         }
-        public Keys[] SkypeKeys
+        public Keys[] NewKeys
         {
             get
             {
-                return skypeKeys;
+                return newKeys;
             }
         }
         private void RefreshSubscribedServers()
@@ -154,7 +156,7 @@ namespace HiT.VoIPSoundboard
             {
                 Button hotkeyButton = (Button)sender;
                 hotkeyButton.Text = e.KeyCode.ToString();
-                skypeKeys[(hotkeyButton.TabIndex - 3) / 2] = e.KeyCode;
+                newKeys[(hotkeyButton.TabIndex - 3) / 2] = e.KeyCode;
                 updateHotkey = false;
             }
         }
@@ -181,7 +183,7 @@ namespace HiT.VoIPSoundboard
             ttsVoicesBox.Items.Clear();
             for (int currVoiceIndex = 0; currVoiceIndex < selectedTTSBank.VoicesCount; currVoiceIndex++)
             {
-                ttsVoicesBox.Items.Add(selectedTTSBank.GetVoice(currVoiceIndex));
+                ttsVoicesBox.Items.Add(selectedTTSBank.GetVoice(currVoiceIndex).VoiceName);
             }
             ttsVoicesBox.SelectedIndex = selectedVoicesBanks[ttsBanksBox.SelectedIndex];
             sourceSoundboard.SelectedBankIndex = ttsBanksBox.SelectedIndex;
@@ -193,7 +195,7 @@ namespace HiT.VoIPSoundboard
         }
         private void demoTTSButton_Click(object sender, EventArgs e)
         {
-            MemoryStream ttsMP3Stream = sourceSoundboard.RequestTTSFile("Hello my name is " + ttsVoicesBox.SelectedItem.ToString() + " and this is how my voice sounds");
+            MemoryStream ttsMP3Stream = sourceSoundboard.RequestTTSFile("Hello, this is a " + ttsVoicesBox.SelectedItem.ToString() + " voice. And this is how it sounds");
             if (ttsMP3Stream != null)
             {
                 SoundPlayer soundPlayer = new SoundPlayer(TTSTMP_PATH);
@@ -207,9 +209,9 @@ namespace HiT.VoIPSoundboard
                 soundPlayer.Play();
             }
         }
-        private void acapelaGroupLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        private void voiceRSSLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            Process.Start("http://www.acapela-group.com");
+            Process.Start("http://www.voicerss.org");
         }
         private void showPasswordBox_CheckedChanged(object sender, EventArgs e)
         {
@@ -449,6 +451,7 @@ namespace HiT.VoIPSoundboard
                 if (savingAvatar)
                 {
                     DiscordUser meClone;
+                    bool canChangeNickname;
                     DiscordUser copyingUserClone;
                     ulong copyingUserID = fetchedUsers[fetchedUsersBox.SelectedIndex].Id;
                     this.Invoke((MethodInvoker)delegate
@@ -458,29 +461,25 @@ namespace HiT.VoIPSoundboard
                     newUsername = fetchedUsers[fetchedUsersBox.SelectedIndex].Name;
                     foreach (var currServer in discordSoundboard.Client.Servers)
                     {
-                        break; //tmp
-                        meClone = null;
-                        copyingUserClone = null;
-                        foreach (var currUser in currServer.Users)
+                        copyingUserClone = currServer.GetUser(copyingUserID);
+                        if (copyingUserClone != null) //Is the user in the current server?
                         {
-                            if (currUser.Id == copyingUserID)
+                            //Yes he is! Let's see if we can change our nickname on this server...
+                            canChangeNickname = false;
+                            meClone = currServer.GetUser(discordSoundboard.Client.CurrentUser.Id);
+                            foreach (var currMeCloneRole in meClone.Roles)
                             {
-                                copyingUserClone = currUser;
-                                if (meClone != null)
+                                if (currMeCloneRole.Permissions.ChangeNickname)
                                 {
+                                    canChangeNickname = true;
                                     break;
                                 }
                             }
-                            else if (currUser.Id == discordSoundboard.Client.CurrentUser.Id)
+                            if (canChangeNickname)
                             {
-                                meClone = currUser;
-                                if (copyingUserClone != null)
-                                {
-                                    break;
-                                }
+                                await meClone.Edit(nickname: copyingUserClone.Nickname);
                             }
                         }
-                        await meClone.Edit(nickname: copyingUserClone.Nickname);
                     }
                 }
                 else
@@ -495,6 +494,7 @@ namespace HiT.VoIPSoundboard
                 try
                 {
                     await discordSoundboard.Client.CurrentUser.Edit(discordSoundboard.Password, newUsername, avatar: avatarImageStream, avatarType: ImageType.Jpeg);
+                    MessageBox.Show("INFO: Copycat was successfull! >:D", "INFO: Copycat success.", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (HttpException ex)
                 {

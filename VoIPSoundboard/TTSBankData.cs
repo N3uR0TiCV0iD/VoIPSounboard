@@ -7,13 +7,12 @@ namespace HiT.VoIPSoundboard
     {
         Image flagImage;
         string bankName;
-        List<string> voices;
+        List<VoiceInfo> voices;
         public TTSBankData(string bankName)
         {
             this.bankName = bankName;
             //ttsBanksBox.DrawItem += ttsBanksBox_DrawItem;
-            //"http://www.acapela-group.com/demo-tts/Elements/flags/" + English%20(UK) + ".png"
-            this.voices = new List<string>();
+            this.voices = new List<VoiceInfo>();
         }
         public string BankName
         {
@@ -36,13 +35,13 @@ namespace HiT.VoIPSoundboard
                 return voices.Count;
             }
         }
-        public string GetVoice(int index)
+        public VoiceInfo GetVoice(int index)
         {
             return voices[index];
         }
-        public void AddVoice(string voiceName)
+        public void AddVoice(VoiceInfo voice)
         {
-            voices.Add(voiceName);
+            voices.Add(voice);
         }
     }
 }

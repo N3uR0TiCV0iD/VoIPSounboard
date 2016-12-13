@@ -1,0 +1,9 @@
+﻿- Added "What's new?" xP
+- Discord mode has been fixed
+- Improved copycat functionality for Discord users
+- You can now disable TTS with a hotkey (Look in settings)
+- Added "Notify when mute speaking" for Discord (Experimental)
+- TTS has been reimplemented (Since www.acapela-group.com changed their TOS on their demo)
+- Fixed a bug that would stop VoIPSoundboard from closing if the SourceGame you injected to was still running
+- Fixed a small bug with group deletion (There are many more :P)
+- Fixed Skype muting

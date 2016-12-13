@@ -9,7 +9,7 @@ namespace HiT.VoIPSoundboard
     {
         [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hwnd, int showCMD);
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
-        const string VERSION = "1.0d";
+        public const string VERSION = "1.2";
         const int SW_SHOWNORMAL = 1;
         /// <summary>
         /// The main entry point for the application.
@@ -29,7 +29,7 @@ namespace HiT.VoIPSoundboard
             }
             if (runningProcess == null)
             {
-                UpdateInfoFileHelper updateHelper = new UpdateInfoFileHelper("https://raw.githubusercontent.com/N3uR0TiCV0iD/VoIPSounboard/master/latestversion", new VersionInfo(VERSION));
+                UpdateInfoFileHelper updateHelper = new UpdateInfoFileHelper("https://raw.githubusercontent.com/N3uR0TiCV0iD/VoIPSoundboard/master/latestversion", new VersionInfo(VERSION));
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.EnableVisualStyles();
                 myProcess = null;

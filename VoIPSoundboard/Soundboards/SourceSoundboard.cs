@@ -8,6 +8,7 @@ using Microsoft.Win32;
 using System.Threading;
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Globalization;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -45,71 +46,59 @@ namespace HiT.VoIPSoundboard.Soundboards
         int selectedBankIndex;
         NotifyIcon trayIcon;
         MainForm mainForm;
+        bool ttsEnabled;
         public SourceSoundboard(MainForm mainForm)
         {
-            string newItemName;
-            int currBankIndex = 0;
-            bool parsedBanks = false;
-            bool foundFieldset = false;
+            string newVoiceCode;
+            string newVoiceName;
+            string newCountryCode;
+            bool readFirstOption = false;
+            string lastCountryCode = null;
             this.ttsBanks = new List<TTSBankData>();
             using (WebClient webClient = new WebClient())
             {
-                foreach (var currLine in webClient.DownloadString("http://www.acapela-group.com/demo-tts/DemoHTML5Form_V2.php").Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
+                foreach (var currLine in webClient.DownloadString("http://www.voicerss.org/api/demo.aspx").Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    if (foundFieldset)
+                    if (currLine.EndsWith("</option>"))
                     {
-                        if (currLine.EndsWith("</option>"))
+                        if (readFirstOption)
                         {
-                            if (!parsedBanks)
+                            newVoiceName = null;
+                            newVoiceCode = currLine.Substring(43, 5);
+                            newCountryCode = currLine.Substring(43, 2);
+                            for (int currLineChar = currLine.Length - 10; currLineChar >= 0; currLineChar--)
                             {
-                                //Is parsing banks
-                                newItemName = currLine.Substring(11, currLine.Length - 36);
-                                ttsBanks.Add(new TTSBankData(newItemName));
-                            }
-                            else
-                            {
-                                //Is parsing voices
-                                newItemName = null;
-                                for (int currLineChar = currLine.Length - 10; currLineChar >= 0; currLineChar--)
+                                if (currLine[currLineChar] == '>')
                                 {
-                                    if (currLine[currLineChar] == '>')
-                                    {
-                                        newItemName = currLine.Substring(currLineChar + 1, currLine.Length - currLineChar - 10);
-                                        break;
-                                    }
-                                }
-                                if (newItemName != null)
-                                {
-                                    ttsBanks[currBankIndex].AddVoice(newItemName);
+                                    newVoiceName = currLine.Substring(currLineChar + 1, currLine.Length - currLineChar - 10);
+                                    break;
                                 }
                             }
-                        }
-                        else if (parsedBanks && currLine.EndsWith("</select>"))
-                        {
-                            currBankIndex++;
-                        }
-                        else if (currLine.EndsWith("</fieldset>"))
-                        {
-                            if (!parsedBanks)
+                            if (newVoiceName != null)
                             {
-                                foundFieldset = false;
-                                parsedBanks = true;
+                                if (newCountryCode != lastCountryCode)
+                                {
+                                    this.ttsBanks.Add(new TTSBankData(CultureInfo.GetCultureInfo(newCountryCode).EnglishName));
+                                }
+                                this.ttsBanks[this.ttsBanks.Count - 1].AddVoice(new VoiceInfo(newVoiceName, newVoiceCode));
                             }
-                            else
-                            {
-                                break; //We have parsed both the banks and the voices, I think we are done here...
-                            }
+                            lastCountryCode = newCountryCode;
+                        }
+                        else
+                        {
+                            readFirstOption = true;
                         }
                     }
-                    else if (currLine.EndsWith("<fieldset>"))
+                    else if (currLine.EndsWith("</select>"))
                     {
-                        foundFieldset = true;
+                        break;
                     }
                 }
             }
             this.loadLibraryMethodPtr = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
             this.trayIcon = mainForm.TrayIcon;
             this.mainForm = mainForm;
+            this.ttsEnabled = true;
         }
         public SourceSoundboard(MainForm mainForm, RegistryKey appRegistryKey) : this(mainForm)
         {
@@ -118,23 +107,31 @@ namespace HiT.VoIPSoundboard.Soundboards
             if (registryValue != null)
             {
                 lastSessionVoice = registryValue.ToString();
+                if (!SelectSessionVoice(lastSessionVoice))
+                {
+                    SelectSessionVoice("English (United States)");
+                }
             }
             else
             {
-                lastSessionVoice = "Ryan";
+                SelectSessionVoice("English (United States)");
             }
+        }
+        private bool SelectSessionVoice(string sessionVoice)
+        {
             for (int currBankIndex = 0; currBankIndex < this.ttsBanks.Count; currBankIndex++)
             {
                 for (int currVoiceIndex = 0; currVoiceIndex < this.ttsBanks[currBankIndex].VoicesCount; currVoiceIndex++)
                 {
-                    if (this.ttsBanks[currBankIndex].GetVoice(currVoiceIndex) == lastSessionVoice)
+                    if (this.ttsBanks[currBankIndex].GetVoice(currVoiceIndex).VoiceName == sessionVoice)
                     {
                         this.selectedVoiceIndex = currVoiceIndex;
                         this.selectedBankIndex = currBankIndex;
-                        return;
+                        return true;
                     }
                 }
             }
+            return false;
         }
         public Process SourceGameProcess
         {
@@ -189,6 +186,17 @@ namespace HiT.VoIPSoundboard.Soundboards
                 }
             }
         }
+        public bool TTSEnabled
+        {
+            get
+            {
+                return ttsEnabled;
+            }
+            set
+            {
+                ttsEnabled = value;
+            }
+        }
         public int SelectedBankIndex
         {
             get
@@ -215,7 +223,7 @@ namespace HiT.VoIPSoundboard.Soundboards
         {
             get
             {
-                return ttsBanks[selectedBankIndex].GetVoice(selectedVoiceIndex);
+                return ttsBanks[selectedBankIndex].GetVoice(selectedVoiceIndex).VoiceName;
             }
         }
         public int TTSBanksCount
@@ -268,6 +276,10 @@ namespace HiT.VoIPSoundboard.Soundboards
                         messageSender.Dispose();
                     }
                     sourceGameProcess.Dispose();
+                    if (messageClient.Connected)
+                    {
+                        messageClient.Close();
+                    }
                     sourceGameProcess = null;
                     messageSender = null;
                     messageClient = null;
@@ -334,20 +346,23 @@ namespace HiT.VoIPSoundboard.Soundboards
             int messageLength;
             byte[] messageBytes;
             MemoryStream ttsMP3Stream;
-            while (messageClient != null && messageClient.Connected)
+            while (!mainForm.IsClosed && messageClient != null && messageClient.Connected)
             {
                 try
                 {
                     messageLength = messageReader.ReadInt32();
                     messageBytes = messageReader.ReadBytes(messageLength);
-                    ttsMP3Stream = RequestTTSFile(Encoding.ASCII.GetString(messageBytes));
-                    if (ttsMP3Stream != null)
+                    if (ttsEnabled && mainForm.SBEnabled)
                     {
-                        using (Mp3FileReader mp3FileReader = new Mp3FileReader(ttsMP3Stream))
+                        ttsMP3Stream = RequestTTSFile(Encoding.ASCII.GetString(messageBytes));
+                        if (ttsMP3Stream != null)
                         {
-                            PlayFile(null, mp3FileReader);
-                            mainForm.WaitForSoundEnd(mp3FileReader.TotalTime);
-                            StopPlaying();
+                            using (Mp3FileReader mp3FileReader = new Mp3FileReader(ttsMP3Stream))
+                            {
+                                PlayFile(null, mp3FileReader);
+                                mainForm.WaitForSoundEnd(mp3FileReader.TotalTime);
+                                StopPlaying();
+                            }
                         }
                     }
                 }
@@ -357,38 +372,27 @@ namespace HiT.VoIPSoundboard.Soundboards
                     Utils.ShowUnhandledException(ex, "SourceSoundboard->ReadMessagesService");
                 }
             }
+            messageReader.Dispose();
+        }
+        public void StopReadMessagesService()
+        {
+            if (messageClient != null && messageClient.Connected)
+            {
+                messageClient.Close();
+                messageSender.Close();
+            }
         }
         public MemoryStream RequestTTSFile(string message)
         {
-            string readLine;
-            HttpWebResponse ttsResponse;
-            HttpWebRequest ttsRequest = WebRequest.CreateHttp("http://www.acapela-group.com/demo-tts/DemoHTML5Form_V2.php");
-            string requestContent = "MyLanguages=sonid" + selectedBankIndex + "&MySelectedVoice=" + HttpUtility.HtmlEncode(this.SelectedTTSVoice) +
-                                    "&MyTextForTTS=" + HttpUtility.HtmlEncode(message) + "&t=1&SendToVaaS=";
-            ttsRequest.ContentType = "application/x-www-form-urlencoded";
-            ttsRequest.ContentLength = requestContent.Length;
-            ttsRequest.Method = "POST";
-            using ( StreamWriter requestWriter = new StreamWriter(ttsRequest.GetRequestStream()) )
+            StringBuilder requestURL = new StringBuilder();
+            VoiceInfo selectedVoice = this.ttsBanks[selectedBankIndex].GetVoice(selectedVoiceIndex);
+            requestURL.Append("http://api.voicerss.org/?key=3a00956d09304edaab2559f5a0672b40");
+            requestURL.Append("&hl=" + selectedVoice.VoiceCode + "&src=" + HttpUtility.HtmlEncode(message));
+            requestURL.Append("&f=32khz_16bit_mono");
+            using (WebClient webClient = new WebClient())
             {
-                requestWriter.Write(requestContent);
+                return new MemoryStream( webClient.DownloadData(requestURL.ToString()) );
             }
-            ttsResponse = (HttpWebResponse)ttsRequest.GetResponse();
-            using ( StreamReader responseReader = new StreamReader(ttsResponse.GetResponseStream()) )
-            {
-                while (!responseReader.EndOfStream)
-                {
-                    readLine = responseReader.ReadLine();
-                    if (readLine.StartsWith("            var myPhpVar"))
-                    {
-                        //MessageBox.Show("<" + readLine + ">");
-                        using (WebClient webClient = new WebClient())
-                        {
-                            return new MemoryStream( webClient.DownloadData(readLine.Substring(28, readLine.Length - 30)) );
-                        }
-                    }
-                }
-            }
-            return null;
         }
         public void PlayFile(string filePath, WaveStream waveStream)
         {

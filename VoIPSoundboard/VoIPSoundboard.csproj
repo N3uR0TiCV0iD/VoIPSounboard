@@ -47,13 +47,13 @@
     <Reference Include="AutoUpdateModule">
       <HintPath>Dependencies\AutoUpdateModule.dll</HintPath>
     </Reference>
-    <Reference Include="Discord.Net, Version=0.9.5.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Discord.Net.0.9.5\lib\net45\Discord.Net.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Discord.Net, Version=0.9.6.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>Dependencies\Discord.Net.dll</HintPath>
     </Reference>
-    <Reference Include="Discord.Net.Audio, Version=0.9.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Discord.Net.Audio.0.9.4\lib\net45\Discord.Net.Audio.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Discord.Net.Audio, Version=0.9.6.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>Dependencies\Discord.Net.Audio.dll</HintPath>
     </Reference>
     <Reference Include="Interop.SKYPE4COMLib">
       <HintPath>Dependencies\Interop.SKYPE4COMLib.dll</HintPath>
@@ -98,6 +98,12 @@
     <Compile Include="Forms\FlatProgressBar.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Forms\WhatsNewForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\WhatsNewForm.Designer.cs">
+      <DependentUpon>WhatsNewForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MicrophoneHelper.cs" />
     <Compile Include="Forms\VACDisclaimerDialog.cs">
       <SubType>Form</SubType>
@@ -138,6 +144,7 @@
     </Compile>
     <Compile Include="TTSBankData.cs" />
     <Compile Include="Utils.cs" />
+    <Compile Include="VoiceInfo.cs" />
     <Compile Include="VolumeMixer.cs" />
     <Compile Include="WindowSizeGetter.cs" />
     <EmbeddedResource Include="Forms\MainForm.resx">
@@ -145,6 +152,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\NewGroupDialog.resx">
       <DependentUpon>NewGroupDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\WhatsNewForm.resx">
+      <DependentUpon>WhatsNewForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -178,6 +188,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon.ico" />
+    <Content Include="Resources\WhatsNew.txt" />
     <None Include="Resources\ListenTTSIcon.png" />
     <Content Include="Resources\muted_notification.wav" />
     <None Include="Resources\ToastIcon.png" />

@@ -13,9 +13,9 @@ using System.Runtime.InteropServices;
 using Application = System.Windows.Forms.Application;
 namespace HiT.VoIPSoundboard
 {
-    public partial class MainForm : Form //TODO: Make a new soundgroup editor with online capabilities | Add sound group hotkey (i.e. make it switch instantly to said group)
+    public partial class MainForm : Form //TODO: Make a new soundgroup editor with online capabilities | Add sound group hotkey (i.e. make it switch instantly to said group) | Make it so that sounds can share a key in a group
     {
-        const int GLOBAL_HOTKEYS = 7;
+        const int GLOBAL_HOTKEYS = 8;
         [DllImport("user32.dll")] private static extern short GetAsyncKeyState(Keys vKey);
         Dictionary<string, List<SoundData>> sounds;
         DiscordSoundboard discordSoundboard;
@@ -27,7 +27,7 @@ namespace HiT.VoIPSoundboard
         ToastInfoForm toastInfoForm;
         List<string> soundGroups;
         Stopwatch playerTimer;
-        Thread managerThread;
+        Thread serviceThread;
         Keys[] globalHotkeys;
         string currGroupName;
         int lastHotkeyAction;
@@ -40,6 +40,7 @@ namespace HiT.VoIPSoundboard
         bool startup;
         public MainForm()
         {
+            string lastUsingVersion;
             object registryValue;
             this.startup = true;
             this.sbEnabled = true;
@@ -91,6 +92,8 @@ namespace HiT.VoIPSoundboard
                     {
                         this.discordMenuItem.PerformClick();
                     }
+                    registryValue = appRegistryKey.GetValue("UsingVersion");
+                    lastUsingVersion = registryValue != null ? registryValue.ToString() : null;
                     registryValue = appRegistryKey.GetValue("EnableSBKey");
                     if (registryValue != null)
                     {
@@ -121,6 +124,11 @@ namespace HiT.VoIPSoundboard
                     {
                         globalHotkeys[5] = (Keys)registryValue;
                     }
+                    registryValue = appRegistryKey.GetValue("EnableTTSKey");
+                    if (registryValue != null)
+                    {
+                        globalHotkeys[6] = (Keys)registryValue;
+                    }
                     registryValue = appRegistryKey.GetValue("StopSoundKey");
                     if (registryValue != null)
                     {
@@ -137,9 +145,28 @@ namespace HiT.VoIPSoundboard
                     this.sourceSoundboard = new SourceSoundboard(this);
                     this.discordSoundboard = new DiscordSoundboard();
                     this.discordMenuItem.PerformClick();
+                    lastUsingVersion = null;
                 }
             }
+            #if !DEBUG
+                if (lastUsingVersion != Program.VERSION)
+                {
+                    ShowWhatsNewForm();
+                }
+            #else
+                if (WhatsNewForm.DEBUG_SHOWFORM)
+                {
+                    ShowWhatsNewForm();
+                }
+            #endif
             this.startup = false;
+        }
+        private void ShowWhatsNewForm()
+        {
+            using (WhatsNewForm whatsNewForm = new WhatsNewForm())
+            {
+                whatsNewForm.ShowDialog();
+            }
         }
         public DiscordSoundboard DiscordSoundboard
         {
@@ -169,12 +196,26 @@ namespace HiT.VoIPSoundboard
                 return trayIcon;
             }
         }
+        public bool SBEnabled
+        {
+            get
+            {
+                return sbEnabled;
+            }
+        }
+        public bool IsClosed
+        {
+            get
+            {
+                return requestedExit;
+            }
+        }
         private void MainForm_Load(object sender, EventArgs e)
         {
-            this.managerThread = new Thread(() => InitializeManager());
-            this.managerThread.Start();
+            this.serviceThread = new Thread(() => InitializeService());
+            this.serviceThread.Start();
         }
-        private void InitializeManager()
+        private void InitializeService()
         {
             int groupsCount;
             int soundsCount;
@@ -211,9 +252,9 @@ namespace HiT.VoIPSoundboard
                     }
                 }
             }            
-            ProvideManagerService();
+            ProvideService();
         }
-        private void ProvideManagerService()
+        private void ProvideService()
         {
             SoundData currSound;
             List<SoundData> groupSounds;
@@ -306,6 +347,10 @@ namespace HiT.VoIPSoundboard
                                             NotifyViaToast("Skype has been " + (!isMuted ? "deafened." : "undeafened."));
                                         }
                                     }
+                                break;
+                                case 6:
+                                    sourceSoundboard.TTSEnabled = !sourceSoundboard.TTSEnabled;
+                                    NotifyViaToast("TTS is now: " + (sourceSoundboard.TTSEnabled ? "Enabled" : "Disabled"));
                                 break;
                             }
                             lastHotkeyAction = currHotkey;
@@ -425,7 +470,7 @@ namespace HiT.VoIPSoundboard
                                                                     "WARNING: Group deletion.", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
                 string directoryPath = "soundboard\\" + currGroupName;
-                int lastIndex = soundGroupBox.SelectedIndex;
+                int deletingIndex = soundGroupBox.SelectedIndex;
                 if (Directory.Exists(directoryPath))
                 {
                     try
@@ -438,13 +483,14 @@ namespace HiT.VoIPSoundboard
                     }
                 }
                 sounds.Remove(currGroupName);
-                moveToBox.Items.RemoveAt(lastIndex);
-                soundGroupBox.Items.RemoveAt(lastIndex);
+                soundGroups.RemoveAt(deletingIndex);
+                moveToBox.Items.RemoveAt(deletingIndex);
+                soundGroupBox.Items.RemoveAt(deletingIndex);
                 if (soundGroupBox.Items.Count != 0)
                 {
-                    if (lastIndex != 0)
+                    if (deletingIndex != 0)
                     {
-                        soundGroupBox.SelectedIndex = lastIndex - 1;
+                        soundGroupBox.SelectedIndex = deletingIndex - 1;
                     }
                     else
                     {
@@ -700,12 +746,15 @@ namespace HiT.VoIPSoundboard
                     {
                         using (StreamWriter logWriter = new StreamWriter("log.txt"))
                         {
+                            logWriter.WriteLine(ex.Message);
+                            logWriter.WriteLine("---------------");
                             logWriter.WriteLine(ex.StackTrace);
                         }
                         Process.Start("log.txt");
                     }
-                    globalHotkeys[4] = settingsForm.SkypeKeys[0];
-                    globalHotkeys[5] = settingsForm.SkypeKeys[1];
+                    globalHotkeys[4] = settingsForm.NewKeys[0];
+                    globalHotkeys[5] = settingsForm.NewKeys[1];
+                    globalHotkeys[6] = settingsForm.NewKeys[2];
                     openSettingsForm = null;
                 }
             }
@@ -847,12 +896,14 @@ namespace HiT.VoIPSoundboard
             appRegistryKey.SetValue("CheckFullScreen", skypeSoundboard.CheckFullscreen ? 1 : 0, RegistryValueKind.DWord);
             appRegistryKey.SetValue("FullScreenStatus", (int)skypeSoundboard.FullscreenStatus, RegistryValueKind.DWord);
             appRegistryKey.SetValue("SoundboardMode", (int)soundboardMode, RegistryValueKind.DWord);
+            appRegistryKey.SetValue("UsingVersion", Program.VERSION, RegistryValueKind.String);
             appRegistryKey.SetValue("EnableSBKey", globalHotkeys[0], RegistryValueKind.DWord);
             appRegistryKey.SetValue("PriorGroupKey", globalHotkeys[1], RegistryValueKind.DWord);
             appRegistryKey.SetValue("NextGroupKey", globalHotkeys[2], RegistryValueKind.DWord);
             appRegistryKey.SetValue("RecordKey", globalHotkeys[3], RegistryValueKind.DWord);
             appRegistryKey.SetValue("MuteMicrophoneKey", globalHotkeys[4], RegistryValueKind.DWord);
             appRegistryKey.SetValue("DeafenSkypeKey", globalHotkeys[5], RegistryValueKind.DWord);
+            appRegistryKey.SetValue("EnableTTSKey", globalHotkeys[6], RegistryValueKind.DWord);
             appRegistryKey.SetValue("StopSoundKey", globalHotkeys[GLOBAL_HOTKEYS - 1], RegistryValueKind.DWord);
             appRegistryKey.SetValue("TTSVoiceName", sourceSoundboard.SelectedTTSVoice, RegistryValueKind.String);
             if (discordSoundboard.HasLogin)
@@ -863,6 +914,7 @@ namespace HiT.VoIPSoundboard
             {
                 discordSoundboard.Client.Disconnect();
             }
+            sourceSoundboard.StopReadMessagesService();
             appRegistryKey.Close();
             appRegistryKey = null;
             SaveSoundDB();

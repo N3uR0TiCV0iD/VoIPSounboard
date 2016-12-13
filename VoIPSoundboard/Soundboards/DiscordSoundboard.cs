@@ -92,45 +92,24 @@ namespace HiT.VoIPSoundboard.Soundboards
         private void client_Ready(object sender, EventArgs e)
         {
             int currMatchingServerIndex = 0;
-            bool foundFollowingUserClone;
             int activeServerIndex = -1;
-            bool foundMyClone;
+            DiscordUser currUser;
             ready = false;
             meClones.Clear();
             followingUserClones.Clear();
+            //MessageBox.Show("Client connected!");
             foreach (var currServer in client.Servers)
             {
-                foundMyClone = false;
-                foundFollowingUserClone = false;
-                foreach (var currUser in currServer.Users)
+                currUser = currServer.GetUser(followingUserID);
+                if (currUser != null)
                 {
-                    if (currUser.Id == followingUserID)
+                    followingUserClones.Add(currUser);
+                    if (currUser.VoiceChannel != null)
                     {
-                        followingUserClones.Add(currUser);
-                        if (currUser.VoiceChannel != null)
-                        {
-                            activeServerIndex = currMatchingServerIndex;
-                        }
-                        foundFollowingUserClone = true;
-                        currMatchingServerIndex++;
-                        if (foundMyClone)
-                        {
-                            break;
-                        }
+                        activeServerIndex = currMatchingServerIndex;
                     }
-                    else if (currUser.Id == client.CurrentUser.Id)
-                    {
-                        foundMyClone = true;
-                        meClones.Add(currUser);
-                        if (foundFollowingUserClone)
-                        {
-                            break;
-                        }
-                    }
-                }
-                if (!foundFollowingUserClone) //This can happen... Say you left the server the bot is on but the bot doesn't leave it
-                {
-                    meClones.RemoveAt(meClones.Count - 1);
+                    meClones.Add(currServer.GetUser(client.CurrentUser.Id));
+                    currMatchingServerIndex++;
                 }
             }
             if (activeServerIndex != -1)
@@ -268,6 +247,7 @@ namespace HiT.VoIPSoundboard.Soundboards
             {
                 try
                 {
+                    //MessageBox.Show("Connecting with email: " + email + " | password: " + password);
                     await client.Connect(email, password);
                 }
                 catch (HttpException)

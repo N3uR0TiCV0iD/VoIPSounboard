@@ -96,7 +96,7 @@ void InitPlugin()
 		DWORD scaleFormDLL = (DWORD)GetModuleHandleA("scaleformui.dll");
 		DWORD scaleFormDLLSize = GetModuleSize((HMODULE)scaleFormDLL);
 		DWORD engineUpdateMsgHookAddress = FindPattern(scaleFormDLL, scaleFormDLLSize, ENGINEUPDATEMSG_PATTERN, ENGINEUPDATEMSG_MASK);
-		DEBUGMSG("Found ClientCMD method @ 0x%08x\n", &ClientCMD);
+		DEBUGMSG("Found ClientCMD method @ 0x%08x\n", (unsigned int)ClientCMD);
 		DEBUGMSG("scaleFormDLL Module @ 0x%08x\n", scaleFormDLL);
 		DEBUGMSG("scaleFormDLLSize: %i\n", scaleFormDLLSize);
 		engineUpdateMsgReturnAddress = engineUpdateMsgHookAddress + ENGINEUPDATEMSG_REPLACINGBYTES;
@@ -109,6 +109,10 @@ void InitPlugin()
 			{
 				DEBUGMSG("Successfully hooked ShowHideChatBox @ 0x%08x\n", showHideChatBoxHookAddress);
 				PluginService(ClientCMD);
+			}
+			else
+			{
+				DEBUGMSG("Could not hook the ShowHideChatBox method\n");
 			}
 		}
 		else
@@ -143,7 +147,7 @@ DWORD FindPattern(DWORD startPos, DWORD lookLength, const char *pattern, const c
 		//Foreach byte from currMemoryPos to (currMemoryPos + patternLength)
 		for (int currPatternOffset = 0; currPatternOffset < patternLength; currPatternOffset++)
 		{
-			if (mask[currPatternOffset] == '1' && pattern[currPatternOffset] != *(char*)(currMemoryPos + currPatternOffset))
+			if (mask[currPatternOffset] == '1' && *(char*)(currMemoryPos + currPatternOffset) != pattern[currPatternOffset])
 			{
 				found = false;
 				break;

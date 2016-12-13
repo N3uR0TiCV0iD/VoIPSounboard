@@ -8,7 +8,7 @@ namespace HiT.VoIPSoundboard
         [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
         public static void ShowUnhandledException(Exception ex, string methodName)
         {
-            MessageBox.Show("ERROR: " + ex.GetType().ToString() + " | " + ex.Message, "ERROR: Unhandled Exception. @" + methodName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("ERROR: Unhandled " + ex.GetType().ToString() + " (" + Marshal.GetHRForException(ex) + "): " + ex.Message, "ERROR: Unhandled Exception. @" + methodName, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }
